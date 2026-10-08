@@ -1,0 +1,249 @@
+/* ============================================================
+ * SingleInterface Design System — tokens
+ * Mirrors src/Layout.jsx :root from the source codebase.
+ * Import with: <link rel="stylesheet" href="colors_and_type.css">
+ * ============================================================ */
+
+/* Hanken Grotesk — local variable fonts (replaces Google Fonts CDN).
+ * Browsers automatically clamp to the variable axis range (100–900). */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  src: url('fonts/HankenGrotesk-VariableFont_wght.ttf') format('truetype-variations'),
+       url('fonts/HankenGrotesk-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hanken Grotesk';
+  src: url('fonts/HankenGrotesk-Italic-VariableFont_wght.ttf') format('truetype-variations'),
+       url('fonts/HankenGrotesk-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  /* ── Brand colors ───────────────────────────────────────── */
+  --si-primary-deep:        #0E0071;   /* sidebar bg, gradient start, brand anchor */
+  --si-primary-accent:      #0070FC;   /* CTAs, links, active indicators */
+  --si-primary-hover:       #0A0054;   /* 1 step darker than deep */
+  --si-primary-active:      #060038;   /* pressed state */
+  --si-secondary-hover:     #0E0071;
+  --si-secondary-active:    #0A0054;
+
+  /* ── AI gradients ───────────────────────────────────────── */
+  /* Primary — deep navy → electric blue. Default AI surface. */
+  --si-ai-gradient-start:        #0E0071;
+  --si-ai-gradient-end:          #0070FC;
+  --si-ai-gradient-hover-start:  #0A0054;
+  --si-ai-gradient-hover-end:    #005DD1;
+  --si-ai-text:                  #FFFFFF;
+  --si-ai-gradient:              linear-gradient(90deg, var(--si-ai-gradient-start) 0%, var(--si-ai-gradient-end) 100%);
+
+  /* Secondary — blue → purple. Reserved for generative / creative AI. */
+  --si-ai-gradient-2-start:      #3B82F6;
+  --si-ai-gradient-2-end:        #9333EA;
+  --si-ai-gradient-2:            linear-gradient(90deg, var(--si-ai-gradient-2-start) 0%, var(--si-ai-gradient-2-end) 100%);
+
+  /* Light tinted variants — use these on LIGHT surfaces (dark text on tinted bg). */
+  /* Primary light — wash of the navy→blue gradient, safe behind dark copy. */
+  --si-ai-gradient-light-start: #EEF2FF;   /* indigo-50 */
+  --si-ai-gradient-light-end:   #DBEAFE;   /* blue-100 */
+  --si-ai-gradient-light:       linear-gradient(90deg, var(--si-ai-gradient-light-start) 0%, var(--si-ai-gradient-light-end) 100%);
+
+  /* Secondary light — wash of the blue→purple gradient. */
+  --si-ai-gradient-2-light-start: #DBEAFE; /* blue-100 */
+  --si-ai-gradient-2-light-end:   #EDE9FE; /* violet-100 */
+  --si-ai-gradient-2-light:       linear-gradient(90deg, var(--si-ai-gradient-2-light-start) 0%, var(--si-ai-gradient-2-light-end) 100%);
+
+  /* Legacy tokens (kept for source-codebase parity) */
+  --si-ai-purple-start:     #9333EA;
+  --si-ai-purple-end:       #3B82F6;
+
+  /* ── Text colors ────────────────────────────────────────── */
+  --si-text-primary:        #111827;   /* headings, bold labels */
+  --si-text-secondary:      #374151;   /* body */
+  --si-text-tertiary:       #6B7280;   /* captions, placeholders */
+  --si-heading:             #122E44;   /* H1-level deep-navy headings */
+  --si-body:                #53606A;   /* default paragraph body */
+
+  /* ── Surfaces ───────────────────────────────────────────── */
+  --si-surface-base:        #F9FAFD;   /* page background — blue-tinted near-white */
+  --si-surface-alt:         #F9FAFB;   /* alternate panel bg */
+  --si-surface-elevated:    #FFFFFF;   /* cards, modals */
+
+  /* ── Borders ────────────────────────────────────────────── */
+  --si-border-default:      #E5E7EB;
+  --si-border-subtle:       #F3F4F6;
+
+  /* ── Status colors ──────────────────────────────────────── */
+  --si-success:             #16A34A;
+  --si-success-bg:          #F0FDF4;
+  --si-success-border:      #86EFAC;
+  --si-warning:             #CA8A04;
+  --si-warning-bg:          #FEFCE8;
+  --si-warning-border:      #FDE047;
+  --si-error:               #DC2626;
+  --si-error-bg:            #FEF2F2;
+  --si-error-border:        #FECACA;
+  --si-info:                #1D4ED8;
+  --si-info-bg:             #EFF6FF;
+  --si-info-border:         #BFDBFE;
+
+  /* ── Review-star amber (always use this for ratings) ────── */
+  --si-star-amber:          #F59E0B;
+  --si-star-amber-empty:    #E5E7EB;
+
+  /* ── Shadows ────────────────────────────────────────────── */
+  --si-shadow-sm:   0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --si-shadow-md:   0 4px 6px -1px rgba(0, 0, 0, 0.10), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --si-shadow-lg:   0 10px 15px -3px rgba(0, 0, 0, 0.10), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --si-shadow-xl:   0 20px 25px -5px rgba(0, 0, 0, 0.10), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Brand-distinctive: the card shadow leans blue, not neutral. */
+  --si-shadow-card: 0 2px 8px rgba(0, 112, 252, 0.08);
+
+  /* ── Spacing scale (4px base) ───────────────────────────── */
+  --si-space-1: 4px;
+  --si-space-2: 8px;
+  --si-space-3: 12px;
+  --si-space-4: 16px;
+  --si-space-5: 20px;
+  --si-space-6: 24px;
+  --si-space-8: 32px;
+  --si-space-10: 40px;
+  --si-space-12: 48px;
+  --si-space-16: 64px;
+
+  /* ── Border radius ──────────────────────────────────────── */
+  --si-radius-sm: 4px;
+  --si-radius-md: 8px;
+  --si-radius-lg: 12px;
+  --si-radius-xl: 16px;
+  --si-radius-2xl: 20px;
+  --si-radius-full: 9999px;
+
+  /* ── Typography scale (px) ──────────────────────────────── */
+  --si-font-display: 60px;   /* KPI hero numbers */
+  --si-font-h1:      32px;
+  --si-font-h2:      24px;
+  --si-font-h3:      20px;
+  --si-font-h4:      16px;
+  --si-font-body:    16px;
+  --si-font-label:   14px;
+  --si-font-caption: 12px;
+
+  --si-leading-tight:    1.25;
+  --si-leading-normal:   1.5;
+  --si-leading-relaxed:  1.6;
+
+  /* ── Z-index scale ──────────────────────────────────────── */
+  --si-z-base: 0;                /* @kind other */
+  --si-z-dropdown: 1000;         /* @kind other */
+  --si-z-sticky: 1020;           /* @kind other */
+  --si-z-fixed: 1030;            /* @kind other */
+  --si-z-modal-backdrop: 1040;   /* @kind other */
+  --si-z-modal: 1050;            /* @kind other */
+  --si-z-popover: 1060;          /* @kind other */
+  --si-z-tooltip: 1070;          /* @kind other */
+
+  /* ── Breakpoints (reference; use in @media) ─────────────── */
+  --si-bp-sm:  480px;
+  --si-bp-md:  768px;
+  --si-bp-lg:  1024px;
+  --si-bp-xl:  1280px;
+  --si-bp-2xl: 1440px;
+
+  /* ── Font stacks ────────────────────────────────────────── */
+  --si-font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --si-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+/* ============================================================
+ * Base + semantic typography
+ * ============================================================ */
+
+html, body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background-color: var(--si-surface-base);
+  color: var(--si-body);
+  font-family: var(--si-font-sans);
+  font-size: var(--si-font-body);
+  line-height: var(--si-leading-normal);
+  font-feature-settings: 'tnum' 1; /* tabular numerals everywhere */
+  margin: 0;
+  padding: 0;
+}
+
+* { font-family: inherit; }
+
+p, span, li { color: var(--si-body); }
+
+a {
+  color: var(--si-body);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+a:hover { color: var(--si-primary-accent); }
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--si-heading);
+  margin: 0;
+  font-family: var(--si-font-sans);
+}
+
+h1 { font-size: var(--si-font-h1); line-height: var(--si-leading-tight); font-weight: 700; }
+h2 { font-size: var(--si-font-h2); line-height: var(--si-leading-tight); font-weight: 600; }
+h3 { font-size: var(--si-font-h3); line-height: var(--si-leading-tight); font-weight: 600; }
+h4 { font-size: var(--si-font-h4); line-height: var(--si-leading-tight); font-weight: 600; }
+h5 { font-size: var(--si-font-label); line-height: var(--si-leading-tight); font-weight: 600; }
+h6 { font-size: var(--si-font-caption); line-height: var(--si-leading-tight); font-weight: 600; }
+
+code, pre, .si-mono {
+  font-family: var(--si-font-mono);
+  font-size: 0.875em;
+}
+
+/* KPI / Display numbers */
+.si-display { font-size: var(--si-font-display); font-weight: 700; line-height: 1.1; color: var(--si-text-primary); font-variant-numeric: tabular-nums; }
+.si-kpi     { font-size: var(--si-font-h1);      font-weight: 700; line-height: 1.1; color: var(--si-text-primary); font-variant-numeric: tabular-nums; }
+
+/* Captions / helper text */
+.si-caption { font-size: var(--si-font-caption); color: var(--si-text-tertiary); line-height: var(--si-leading-relaxed); }
+.si-label   { font-size: var(--si-font-label);   font-weight: 600; color: var(--si-text-primary); }
+
+/* Eyebrow tag — small uppercase letter-spaced label */
+.si-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--si-primary-accent);
+}
+
+/* Responsive type — mirrors @media (max-width: 768px) in src */
+@media (max-width: 768px) {
+  h1 { font-size: 24px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 16px; }
+  body { font-size: 14px; }
+}
+
+/* Focus rings (brand-correct blue accent) */
+*:focus-visible {
+  outline: 2px solid var(--si-primary-accent);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+ * Utility helpers — minimal; reach for these in vanilla HTML
+ * mocks where Tailwind isn't loaded.
+ * ============================================================ */
+
+.si-surface       { background: var(--si-surface-elevated); border: 1px solid var(--si-border-default); border-radius: var(--si-radius-lg); }
+.si-card          { background: var(--si-surface-elevated); border: 1px solid var(--si-border-default); border-radius: var(--si-radius-xl); box-shadow: var(--si-shadow-card); }
+.si-ai-gradient   { background: var(--si-ai-gradient); color: var(--si-ai-text); }
+.si-tabular       { font-variant-numeric: tabular-nums; }

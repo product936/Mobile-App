@@ -1,0 +1,120 @@
+/* ============================================================
+ * SingleInterface — MOBILE tokens
+ * Imports the shared brand tokens from colors_and_type.css and
+ * adds mobile-only overrides + new mobile-native tokens.
+ *
+ * Use with: <link rel="stylesheet" href="colors_and_type.css">
+ *           <link rel="stylesheet" href="mobile_tokens.css">
+ * (order matters — mobile overrides come second)
+ * ============================================================ */
+
+:root {
+  /* ── Mobile typography (iOS-flavored scale) ─────────────── */
+  /* The desktop scale is too large for a 375px viewport. These
+     are the canonical mobile sizes used across the kit. */
+  --m-font-largeTitle: 32px;   /* hero on landing only */
+  --m-font-title1:     28px;   /* screen titles */
+  --m-font-title2:     22px;   /* card titles */
+  --m-font-title3:     18px;   /* section titles */
+  --m-font-headline:   16px;   /* row primary, button text */
+  --m-font-body:       15px;   /* default body */
+  --m-font-callout:    14px;   /* secondary body */
+  --m-font-subhead:    13px;   /* meta */
+  --m-font-footnote:   12px;   /* captions */
+  --m-font-caption:    11px;   /* labels in nav */
+
+  --m-leading-tight:   1.2;
+  --m-leading-snug:    1.35;
+  --m-leading-normal:  1.45;
+
+  /* ── Touch targets (Apple HIG min: 44px) ────────────────── */
+  --m-touch-min:       44px;
+  --m-touch-comfy:     48px;
+  --m-touch-large:     56px;
+
+  /* ── Component canonical heights ─────────────────────────── */
+  --m-input-h:         44px;       /* every input — meets touch-min */
+  --m-row-min-h:       44px;       /* single-line list rows */
+  --m-chip-h:          32px;       /* filter chip (not a button) */
+  --m-btn-h:           48px;       /* primary CTA */
+  --m-btn-sm-h:        36px;       /* inline action buttons */
+
+  /* ── Chrome heights ─────────────────────────────────────── */
+  --m-statusbar:       44px;       /* iOS status bar (notch area) */
+  --m-navbar:          44px;       /* top nav bar (back / title / action) */
+  --m-largebar:        96px;       /* large nav bar with title */
+  --m-tabbar:          56px;       /* bottom tab bar (excl. home indicator) */
+  --m-homeind:         34px;       /* iOS home indicator */
+  --m-fab:             56px;       /* floating action button */
+
+  /* ── Safe areas (real device insets) ─────────────────────── */
+  --m-safe-top:        env(safe-area-inset-top, 0px);
+  --m-safe-bottom:     env(safe-area-inset-bottom, 0px);
+  --m-safe-left:       env(safe-area-inset-left, 0px);
+  --m-safe-right:      env(safe-area-inset-right, 0px);
+
+  /* ── Mobile spacing (denser than desktop) ────────────────── */
+  --m-gutter:          16px;       /* page horizontal padding */
+  --m-gutter-tight:    12px;
+  --m-gutter-loose:    20px;
+  --m-stack-tight:     8px;
+  --m-stack:           12px;
+  --m-stack-loose:     16px;
+  --m-stack-section:   24px;
+
+  /* ── Mobile radii ────────────────────────────────────────── */
+  --m-radius-input:    10px;
+  --m-radius-card:     14px;
+  --m-radius-sheet:    20px;   /* top corners on bottom sheets */
+  --m-radius-fab:      9999px;
+  --m-radius-tag:      9999px;
+
+  /* ── Mobile shadows (softer + more directional than desktop) */
+  --m-shadow-fab:      0 8px 24px rgba(0, 112, 252, 0.35), 0 2px 6px rgba(14, 0, 113, 0.15);
+  --m-shadow-sheet:    0 -8px 28px rgba(15, 23, 42, 0.10);
+  --m-shadow-card:     0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(0, 112, 252, 0.06);
+  --m-shadow-tabbar:   0 -1px 0 rgba(0, 0, 0, 0.05);
+  --m-shadow-toast:    0 8px 24px rgba(15, 23, 42, 0.18);
+
+  /* ── Mobile motion ───────────────────────────────────────── */
+  --m-ease-out:        cubic-bezier(0.25, 0.46, 0.45, 0.94);  /* @kind other */
+  --m-ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);          /* @kind other */
+  --m-ease-sheet:      cubic-bezier(0.32, 0.72, 0, 1);        /* @kind other — iOS sheet curve */
+  --m-dur-fast:        160ms;   /* @kind other */
+  --m-dur-base:        240ms;   /* @kind other */
+  --m-dur-slow:        320ms;   /* @kind other */
+}
+
+/* ── Base resets for mobile-context HTML ─────────────────── */
+html, body {
+  font-size: var(--m-font-body);
+  line-height: var(--m-leading-normal);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior-y: contain;
+}
+
+body {
+  /* prevent iOS pull-to-refresh accidents inside the design */
+  overscroll-behavior-x: none;
+}
+
+/* ── Mobile-native heading scale (overrides desktop H tags) */
+h1 { font-size: var(--m-font-title1); line-height: var(--m-leading-tight); font-weight: 700; }
+h2 { font-size: var(--m-font-title2); line-height: var(--m-leading-tight); font-weight: 600; }
+h3 { font-size: var(--m-font-title3); line-height: var(--m-leading-snug);  font-weight: 600; }
+h4 { font-size: var(--m-font-headline); line-height: var(--m-leading-snug); font-weight: 600; }
+
+/* ── Mobile utility classes ─────────────────────────────── */
+.m-largeTitle { font-size: var(--m-font-largeTitle); font-weight: 700; line-height: var(--m-leading-tight); letter-spacing: -0.02em; color: var(--si-text-primary); }
+.m-title1     { font-size: var(--m-font-title1); font-weight: 700; line-height: var(--m-leading-tight); color: var(--si-text-primary); }
+.m-title2     { font-size: var(--m-font-title2); font-weight: 600; line-height: var(--m-leading-tight); color: var(--si-text-primary); }
+.m-title3     { font-size: var(--m-font-title3); font-weight: 600; line-height: var(--m-leading-snug); color: var(--si-text-primary); }
+.m-headline   { font-size: var(--m-font-headline); font-weight: 600; color: var(--si-text-primary); }
+.m-body       { font-size: var(--m-font-body); font-weight: 400; color: var(--si-text-secondary); }
+.m-callout    { font-size: var(--m-font-callout); font-weight: 500; color: var(--si-text-secondary); }
+.m-subhead    { font-size: var(--m-font-subhead); font-weight: 500; color: var(--si-text-tertiary); }
+.m-footnote   { font-size: var(--m-font-footnote); font-weight: 400; color: var(--si-text-tertiary); }
+.m-caption    { font-size: var(--m-font-caption); font-weight: 500; color: var(--si-text-tertiary); letter-spacing: 0.02em; }
+
+.m-tabular    { font-variant-numeric: tabular-nums; }

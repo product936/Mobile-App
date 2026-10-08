@@ -1,0 +1,17 @@
+/* ============================================================
+ * SingleInterface Design System — root stylesheet
+ * The single entry point for consumers. Link this one file:
+ *   <link rel="stylesheet" href="styles.css">
+ *
+ * It pulls in the shared brand foundation (tokens, fonts, global
+ * typography) used by BOTH the desktop and mobile systems.
+ *
+ * ── Mobile surfaces ──────────────────────────────────────────
+ * The mobile system re-points base element sizes (html/body font,
+ * h1–h4) to phone-appropriate values, so it is intentionally NOT
+ * imported here. On mobile screens, add it AFTER this file:
+ *   <link rel="stylesheet" href="styles.css">
+ *   <link rel="stylesheet" href="mobile_tokens.css">
+ * ============================================================ */
+
+@import url("colors_and_type.css");
