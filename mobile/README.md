@@ -47,6 +47,8 @@ Every colour, size, radius, shadow and duration comes from `src/theme/tokens.ts`
 
 ## Behaviour carried over from the design review
 
+- Lead details shows a coloured status pill next to the title, a status dropdown, versioned notes (edit, delete with confirmation, version history) and a customer history timeline with a playable call recording.
+
 - Missed-call numbers are masked; recovered calls show the full number; lead-form submissions show the customer's name.
 - The location sheet starts unchecked. Selecting exactly Karnataka swaps the home card to the amber "Let's get started" state, and the location button becomes a pill with the location count.
 - "Recover missed revenue" opens Leads filtered to Missed. Regional managers get "Show me who is losing the most", which opens the Leaderboard.
@@ -54,11 +56,11 @@ Every colour, size, radius, shadow and duration comes from `src/theme/tokens.ts`
 
 ## Small changes from the prototype
 
-- Lead details edits (name, status, reminder, notes) are saved with "Save & Done" and shown in the list; the prototype discarded them.
+- Lead details edits (name, status, reminder) are saved with "Save & Done" and shown in the list; the prototype discarded them. Notes save on their own with "Save note", as in the design, and keep their version history per lead for the session.
 - Review filters are a draft until "Apply Filters". Sentiment and rating type now filter too (sentiment is derived from stars: 4–5 positive, 3 neutral, 1–2 negative).
 - The login title is "Recover lost revenue" for both roles, because the role is only known after sign-in (the regional prototype still said "Recover every call").
 - The backdrop blur behind sheets is omitted.
 
 ## Not wired yet
 
-These were visual-only in the prototype and need a backend or product decision: real OTP and lead APIs, the review Reply and "Draft with AI" actions, QR download, image upload (camera or gallery), support ticket submission, create post, invite teammate, the support link, the store switcher in the home header, and the store selector in "Add a lead". The QR code is a placeholder pattern, not a scannable code. The trash icon on unreplied reviews opens the same "Delete this reply?" dialog as the design, but there is no reply to delete there yet.
+These were visual-only in the prototype and need a backend or product decision: real OTP and lead APIs, the review Reply and "Draft with AI" actions, QR download, image upload (camera or gallery), support ticket submission, create post, invite teammate, the support link, the store switcher in the home header, the store selector in "Add a lead", and the "View note", "View chat" and "View details" buttons in a lead's customer history. The call recording in customer history plays a simulated 32-second clip, and every lead shows the same sample notes and history until real lead data is connected. The QR code is a placeholder pattern, not a scannable code. The trash icon on unreplied reviews opens the same "Delete this reply?" dialog as the design, but there is no reply to delete there yet.

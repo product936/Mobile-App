@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Camera, Image as ImageIcon, Paperclip, Trash2, type LucideIcon } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
+import { Dialog } from '@/components/Dialog';
 import { FieldLabel, TextArea, TextField } from '@/components/fields';
 import { IconTile, layout } from '@/components/primitives';
 import { Sheet, SheetBottomInset, SheetFooter, SheetGrabber, SheetHeader } from '@/components/Sheet';
 import { Text } from '@/components/Text';
-import { useReducedMotion } from '@/lib/useReducedMotion';
 import { useAppStore } from '@/state/store';
-import { colors, motion, radius, shadows, type } from '@/theme/tokens';
+import { colors, radius, shadows, type } from '@/theme/tokens';
 
 /** "Raise a ticket": title, description and an attachment. */
 export function SupportSheet() {
@@ -108,54 +108,33 @@ export function DeleteReplyDialog() {
   const id = useAppStore((s) => s.confirmDeleteReplyId);
   const setId = useAppStore((s) => s.setConfirmDeleteReply);
   const deleteReply = useAppStore((s) => s.deleteReply);
-  const reduced = useReducedMotion();
-  const pop = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!id) return;
-    pop.setValue(0);
-    Animated.timing(pop, { toValue: 1, duration: reduced ? 0 : 200, easing: motion.easeOut, useNativeDriver: true }).start();
-  }, [id, reduced, pop]);
-
   const dismiss = () => setId(null);
 
   return (
-    <Modal transparent visible={!!id} animationType="fade" statusBarTranslucent onRequestClose={dismiss}>
-      <Pressable style={styles.scrim} onPress={dismiss} accessibilityLabel="Cancel" accessibilityRole="button" />
-      <View style={styles.center} pointerEvents="box-none">
-        <Animated.View
-          accessibilityViewIsModal
-          accessibilityRole="alert"
-          style={[
-            styles.dialog,
-            { opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) }] },
-          ]}
-        >
-          <View style={styles.dialogIcon}>
-            <Trash2 size={22} color={colors.error} strokeWidth={2} />
-          </View>
-          <Text size={type.title3} weight={700} color={colors.textPrimary}>
-            Delete this reply?
-          </Text>
-          <Text size={type.body} color={colors.textSecondary} style={{ marginTop: 8 }}>
-            This will permanently delete your reply to this review. This action can’t be undone.
-          </Text>
-          <View style={[layout.row, { gap: 10, marginTop: 20 }]}>
-            <Button label="Cancel" variant="outline" height={46} style={layout.flex1} onPress={dismiss} />
-            <Button
-              label="Delete"
-              variant="danger"
-              height={46}
-              style={layout.flex1}
-              onPress={() => {
-                if (id) deleteReply(id);
-                dismiss();
-              }}
-            />
-          </View>
-        </Animated.View>
+    <Dialog visible={!!id} onDismiss={dismiss} style={styles.dialog}>
+      <View style={styles.dialogIcon}>
+        <Trash2 size={22} color={colors.error} strokeWidth={2} />
       </View>
-    </Modal>
+      <Text size={type.title3} weight={700} color={colors.textPrimary}>
+        Delete this reply?
+      </Text>
+      <Text size={type.body} color={colors.textSecondary} style={{ marginTop: 8 }}>
+        This will permanently delete your reply to this review. This action can’t be undone.
+      </Text>
+      <View style={[layout.row, { gap: 10, marginTop: 20 }]}>
+        <Button label="Cancel" variant="outline" height={46} style={layout.flex1} onPress={dismiss} />
+        <Button
+          label="Delete"
+          variant="danger"
+          height={46}
+          style={layout.flex1}
+          onPress={() => {
+            if (id) deleteReply(id);
+            dismiss();
+          }}
+        />
+      </View>
+    </Dialog>
   );
 }
 
@@ -174,12 +153,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   option: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: radius.input },
-  scrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.scrimStrong },
-  center: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', padding: 24 },
   dialog: {
-    width: '100%',
     maxWidth: 340,
-    backgroundColor: colors.surfaceElevated,
     borderRadius: radius.card,
     boxShadow: shadows.xl,
     paddingVertical: 24,
