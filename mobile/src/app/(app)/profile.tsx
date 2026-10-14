@@ -59,7 +59,7 @@ export default function ProfileScreen() {
 
         <Spacer h={18} />
         <View style={{ alignItems: 'center' }}>
-          <Avatar initials={user.initials} size={76} fontSize={28} />
+          <Avatar initials={user.initials} size={76} fontSize={28} weight={800} tracking={0.02} />
           <Spacer h={12} />
           <Text size={type.title2} weight={700} color={colors.textPrimary}>
             {user.name}
