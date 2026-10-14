@@ -119,12 +119,15 @@ export function SheetHeader({
   paddingX = 20,
   topPadding = 6,
   divider = true,
+  accessory,
 }: {
   title: string;
   onClose: () => void;
   paddingX?: number;
   topPadding?: number;
   divider?: boolean;
+  /** Shown right after the title, e.g. a status chip. */
+  accessory?: ReactNode;
 }) {
   return (
     <View
@@ -134,9 +137,12 @@ export function SheetHeader({
         divider && styles.headerDivider,
       ]}
     >
-      <Text size={type.title3} weight={700} color={colors.textPrimary} accessibilityRole="header">
-        {title}
-      </Text>
+      <View style={styles.titleRow}>
+        <Text size={type.title3} weight={700} color={colors.textPrimary} accessibilityRole="header">
+          {title}
+        </Text>
+        {accessory}
+      </View>
       <SheetCloseButton onPress={onClose} />
     </View>
   );
@@ -196,6 +202,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 12,
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, minWidth: 0 },
   headerDivider: { borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
   footerDivider: { borderTopWidth: 1, borderTopColor: colors.borderSubtle },
   close: {

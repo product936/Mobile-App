@@ -134,3 +134,55 @@ export const MEDIA_TILE_GRADIENTS: [string, string][] = [
   ['#F3E8FF', '#EFF6FF'],
   ['#DBEAFE', '#F0FDF4'],
 ];
+
+/** Sample note history seeded on each lead until the user saves their own. */
+export const SEED_NOTE_VERSIONS = [
+  { text: 'Called back. Customer asked for the Tata Ace Gold brochure and price list.', by: 'Priya Menon', when: '3 days ago' },
+  {
+    text: 'Interested in Tata Ace Gold for his delivery business. Wants an on-road price and a finance option before visiting.',
+    by: 'Tarun Sobhani',
+    when: 'Yesterday, 6:10 PM',
+  },
+];
+
+export type CustomerEvent = {
+  id: string;
+  kind: 'purchase' | 'call' | 'chat' | 'form';
+  /** Sentence split into plain and bold parts. */
+  parts: { text: string; bold?: boolean }[];
+  meta: string;
+  action?: string;
+  recordingSeconds?: number;
+};
+
+/** Sample "Customer history" timeline shown in lead details, newest first. */
+export const CUSTOMER_HISTORY: CustomerEvent[] = [
+  {
+    id: 'h1',
+    kind: 'purchase',
+    parts: [{ text: 'Purchased ' }, { text: 'Tata Ace Gold', bold: true }, { text: ' for ' }, { text: '₹5,99,000', bold: true }],
+    meta: 'Walk-in · Yesterday, 4:15 PM',
+    action: 'View note',
+  },
+  {
+    id: 'h2',
+    kind: 'call',
+    parts: [{ text: 'Called to ask about ' }, { text: 'Tata Ace Gold', bold: true }, { text: ' pricing' }],
+    meta: 'Call · 2 days ago',
+    recordingSeconds: 32,
+  },
+  {
+    id: 'h3',
+    kind: 'chat',
+    parts: [{ text: 'Asked about test drive slots on WhatsApp' }],
+    meta: 'Chat · 4 days ago',
+    action: 'View chat',
+  },
+  {
+    id: 'h4',
+    kind: 'form',
+    parts: [{ text: 'Filled an enquiry form for ' }, { text: 'Tata Ace Gold', bold: true }],
+    meta: 'Lead form · 1 week ago',
+    action: 'View details',
+  },
+];

@@ -3,47 +3,52 @@ import { Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'rea
 import { AlarmClock, Check, Link2, MapPin, Pencil, Phone, ShoppingBag } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
-import { Chip } from '@/components/controls';
-import { NotesField } from '@/components/fields';
 import { layout } from '@/components/primitives';
 import { Sheet, SheetFooter, SheetGrabber, SheetHeader } from '@/components/Sheet';
 import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
-import { EDITABLE_LEAD_STATUSES, type LeadStatus } from '@/data/leads';
+import type { LeadStatus } from '@/data/leads';
 import { dialableNumber, leadPresentation } from '@/lib/leads';
-import { useAppStore, useLeads } from '@/state/store';
+import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
+import { LeadNotesSection } from '@/sheets/lead-details/LeadNotesSection';
+import { StatusPill, StatusSelect } from '@/sheets/lead-details/StatusField';
+import { useAppStore, useLeadNotes, useLeads, useRoleConfig } from '@/state/store';
 import { fontFamily } from '@/theme/fonts';
 import { colors, radius, type } from '@/theme/tokens';
 
 /**
  * Lead details: name (added or edited), masked number for missed calls,
- * source and location, status, quick actions, a next-day reminder and notes.
- * Changes are kept as a draft and saved with "Save & Done".
+ * source and location, status, quick actions, a next-day reminder, versioned
+ * notes and the customer's history. Name, status and reminder are a draft
+ * saved with "Save & Done"; notes save on their own.
  */
 export function LeadDetailSheet() {
   const leadId = useAppStore((s) => s.leadDetailId);
   const close = useAppStore((s) => s.closeLeadDetail);
   const save = useAppStore((s) => s.saveLeadEdits);
   const openAddLead = useAppStore((s) => s.openAddLead);
+  const setLeadNotes = useAppStore((s) => s.setLeadNotes);
+  const { user } = useRoleConfig();
   const current = useLeads().find((l) => l.id === leadId);
   // Keep rendering the last lead while the sheet animates closed.
   const lastLead = useRef(current);
   if (current) lastLead.current = current;
   const lead = current ?? lastLead.current;
+  const notes = useLeadNotes(lead?.id ?? null);
 
   const [name, setName] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [status, setStatus] = useState<LeadStatus>('Missed');
+  const [statusOpen, setStatusOpen] = useState(false);
   const [reminder, setReminder] = useState(false);
-  const [note, setNote] = useState('');
 
   useEffect(() => {
     if (!lead) return;
     setName(lead.person ?? '');
     setEditingName(false);
     setStatus(lead.status);
+    setStatusOpen(false);
     setReminder(!!lead.reminder);
-    setNote(lead.note ?? '');
   }, [leadId]); // Reset the draft only when a lead is opened.
 
   const p = lead ? leadPresentation(lead) : null;
@@ -52,7 +57,13 @@ export function LeadDetailSheet() {
   return (
     <Sheet visible={!!current} onClose={close} maxHeightRatio={0.94} accessibilityLabel="Lead details">
       <SheetGrabber bottom={4} />
-      <SheetHeader title="Lead details" onClose={close} paddingX={22} topPadding={2} />
+      <SheetHeader
+        title="Lead details"
+        onClose={close}
+        paddingX={22}
+        topPadding={2}
+        accessory={lead ? <StatusPill status={status} /> : null}
+      />
       {lead && p ? (
         <>
           <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -88,14 +99,18 @@ export function LeadDetailSheet() {
               <MetaChip icon={<MapPin size={13} color={colors.textTertiary} strokeWidth={2} />} label={STORE.locationShort} truncate />
             </View>
 
-            <Text size={type.subhead} weight={700} color={colors.textSecondary} style={styles.sectionLabel}>
+            <Text size={type.subhead} weight={600} color={colors.textSecondary} style={styles.statusLabel}>
               Status
             </Text>
-            <View style={styles.chips}>
-              {EDITABLE_LEAD_STATUSES.map((s) => (
-                <Chip key={s} label={s} selected={s === status} onPress={() => setStatus(s)} />
-              ))}
-            </View>
+            <StatusSelect
+              value={status}
+              open={statusOpen}
+              onToggle={() => setStatusOpen((o) => !o)}
+              onChange={(s) => {
+                setStatus(s);
+                setStatusOpen(false);
+              }}
+            />
 
             <View style={[layout.row, { gap: 10, marginTop: 20 }]}>
               <Button
@@ -152,16 +167,19 @@ export function LeadDetailSheet() {
               />
             )}
 
-            <Text size={type.subhead} weight={700} color={colors.textSecondary} style={styles.sectionLabel}>
-              Notes
-            </Text>
-            <NotesField value={note} onChangeText={setNote} placeholder="Add a note about this lead…" accessibilityLabel="Notes" />
+            <LeadNotesSection
+              key={lead.id}
+              notes={notes}
+              onChange={(next) => setLeadNotes(lead.id, next)}
+              author={user.name}
+            />
+            <CustomerHistory />
           </ScrollView>
           <SheetFooter>
             <Button
               label="Save & Done"
               onPress={() => {
-                save(lead.id, { name: name.trim() || undefined, status, reminder, note });
+                save(lead.id, { name: name.trim() || undefined, status, reminder });
                 close();
               }}
             />
@@ -214,8 +232,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderDefault,
   },
-  sectionLabel: { marginTop: 20, marginBottom: 10 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statusLabel: { marginTop: 20, marginBottom: 8 },
   reminder: {
     flexDirection: 'row',
     alignItems: 'center',

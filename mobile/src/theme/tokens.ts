@@ -140,6 +140,8 @@ export const shadows = {
   sheet: '0px -8px 28px rgba(15, 23, 42, 0.10)',
   aiMark: '0px 10px 24px rgba(0, 112, 252, 0.32)',
   sm: '0px 1px 2px rgba(0, 0, 0, 0.05)',
+  md: '0px 4px 6px -1px rgba(0, 0, 0, 0.10), 0px 2px 4px -1px rgba(0, 0, 0, 0.06)',
+  lg: '0px 10px 15px -3px rgba(0, 0, 0, 0.10), 0px 4px 6px -2px rgba(0, 0, 0, 0.05)',
   xl: '0px 20px 25px -5px rgba(0, 0, 0, 0.10), 0px 10px 10px -5px rgba(0, 0, 0, 0.04)',
   thumb: '0px 1px 3px rgba(0, 0, 0, 0.25)',
   focusRing: '0px 0px 0px 4px rgba(0, 112, 252, 0.16)',

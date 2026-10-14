@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 
 import { ROLE_CONFIGS, type Role, type RoleConfig } from '@/config/roles';
-import type { DateRange } from '@/data/content';
+import { SEED_NOTE_VERSIONS, type DateRange } from '@/data/content';
 import { LEADS, type Lead, type LeadSourceFilter, type LeadStatusFilter } from '@/data/leads';
 import { EMPTY_SELECTION, toggleSelection, type LocationSelection } from '@/lib/format';
+import type { LeadNotes } from '@/lib/notes';
 import type { FilterLevel } from '@/data/locations';
 
 export type SheetName = 'location' | 'date' | 'source' | 'status' | 'reviewFilter' | 'support' | 'upload' | null;
@@ -28,7 +29,7 @@ export const DEFAULT_REVIEW_FILTERS: ReviewFilters = {
   editedOnly: false,
 };
 
-type LeadEdits = { name?: string; status?: Lead['status']; reminder?: boolean; note?: string };
+type LeadEdits = { name?: string; status?: Lead['status']; reminder?: boolean };
 
 type AppState = {
   // Session
@@ -72,6 +73,9 @@ type AppState = {
   // Data the user changes
   leadEdits: Record<string, LeadEdits>;
   saveLeadEdits: (id: string, edits: LeadEdits) => void;
+  /** Versioned notes per lead; leads without saved notes show the seeded sample history. */
+  leadNotes: Record<string, LeadNotes>;
+  setLeadNotes: (id: string, notes: LeadNotes) => void;
   deletedReplies: string[];
   deleteReply: (id: string) => void;
   readNotifications: string[];
@@ -108,6 +112,7 @@ export const useAppStore = create<AppState>((set) => ({
       ...initialFilters,
       ...initialOverlays,
       leadEdits: {},
+      leadNotes: {},
       deletedReplies: [],
       readNotifications: [],
     }),
@@ -138,6 +143,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   leadEdits: {},
   saveLeadEdits: (id, edits) => set((s) => ({ leadEdits: { ...s.leadEdits, [id]: { ...s.leadEdits[id], ...edits } } })),
+  leadNotes: {},
+  setLeadNotes: (id, notes) => set((s) => ({ leadNotes: { ...s.leadNotes, [id]: notes } })),
   deletedReplies: [],
   deleteReply: (id) => set((s) => ({ deletedReplies: [...s.deletedReplies, id] })),
   readNotifications: [],
@@ -153,11 +160,18 @@ export function useRoleConfig(): RoleConfig {
 }
 
 /** Leads with the user's saved edits applied. */
-export function useLeads(): (Lead & { reminder?: boolean; note?: string })[] {
+export function useLeads(): (Lead & { reminder?: boolean })[] {
   const edits = useAppStore((s) => s.leadEdits);
   return LEADS.map((lead) => {
     const e = edits[lead.id];
     if (!e) return lead;
-    return { ...lead, status: e.status ?? lead.status, person: e.name ?? lead.person, reminder: e.reminder, note: e.note };
+    return { ...lead, status: e.status ?? lead.status, person: e.name ?? lead.person, reminder: e.reminder };
   });
+}
+
+const SEEDED_NOTES: LeadNotes = { versions: SEED_NOTE_VERSIONS, active: true };
+
+/** A lead's notes, falling back to the seeded sample history. */
+export function useLeadNotes(id: string | null): LeadNotes {
+  return useAppStore((s) => (id ? (s.leadNotes[id] ?? SEEDED_NOTES) : SEEDED_NOTES));
 }

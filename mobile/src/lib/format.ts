@@ -86,3 +86,21 @@ export function toggleSelection(
   else current.add(name);
   return { selection: { ...base, [level]: [...current] }, all: false };
 }
+
+/** Background and foreground for a lead status chip, e.g. the pill next to "Lead details". */
+export function leadStatusTint(status: LeadStatus): { bg: string; fg: string } {
+  switch (status) {
+    case 'Missed':
+      return { bg: colors.red100, fg: colors.error };
+    case 'Not contacted':
+      return { bg: colors.amber100, fg: colors.amber700 };
+    case 'Set for reminder':
+    case 'Contacted':
+      return { bg: colors.blue50, fg: colors.primaryAccent };
+    case 'Converted':
+    case 'Review sent':
+      return { bg: colors.successBg, fg: colors.success };
+    default:
+      return { bg: colors.surfaceBase, fg: colors.textTertiary };
+  }
+}
