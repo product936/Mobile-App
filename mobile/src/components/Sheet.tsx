@@ -34,7 +34,11 @@ type SheetProps = {
  * that slides up on the iOS sheet curve (300ms). Tapping the backdrop closes it.
  */
 export function Sheet({ visible, onClose, children, heightRatio, maxHeightRatio, accessibilityLabel }: SheetProps) {
-  const { height: screenH } = useWindowDimensions();
+  const { height: windowH } = useWindowDimensions();
+  // Size against the space the sheet actually has (the window on a phone; the
+  // device frame in the web preview), measured once the modal lays out.
+  const [hostH, setHostH] = useState<number | null>(null);
+  const screenH = hostH ?? windowH;
   const reduced = useReducedMotion();
   const [mounted, setMounted] = useState(visible);
   const progress = useRef(new Animated.Value(0)).current;
@@ -66,7 +70,11 @@ export function Sheet({ visible, onClose, children, heightRatio, maxHeightRatio,
 
   return (
     <Modal transparent visible statusBarTranslucent navigationBarTranslucent onRequestClose={onClose} animationType="none">
-      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.fill}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        onLayout={(e) => setHostH(e.nativeEvent.layout.height)}
+      >
         <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, { opacity: progress }]}>
           <Pressable style={styles.fill} onPress={onClose} accessibilityLabel="Close" accessibilityRole="button" />
         </Animated.View>
