@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { AlarmClock, Check, Link2, MapPin, Pencil, Phone, ShoppingBag } from 'lucide-react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { AlarmClock, Check, Link2, PhoneCall, MapPin, Pencil, Phone, ShoppingBag } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { layout } from '@/components/primitives';
@@ -8,7 +8,10 @@ import { Sheet, SheetFooter, SheetGrabber, SheetHeader } from '@/components/Shee
 import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
 import type { LeadStatus } from '@/data/leads';
+import { callNoteText, callOutcome, type CallOutcome } from '@/lib/calls';
 import { dialableNumber, leadPresentation } from '@/lib/leads';
+import { saveNoteVersion } from '@/lib/notes';
+import { CallOutcomeDialog } from '@/sheets/lead-details/CallOutcomeDialog';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
 import { LeadNotesSection } from '@/sheets/lead-details/LeadNotesSection';
 import { StatusPill, StatusSelect } from '@/sheets/lead-details/StatusField';
@@ -20,7 +23,9 @@ import { colors, radius, type } from '@/theme/tokens';
  * Lead details: name (added or edited), masked number for missed calls,
  * source and location, status, quick actions, a next-day reminder, versioned
  * notes and the customer's history. Name, status and reminder are a draft
- * saved with "Save & Done"; notes save on their own.
+ * saved with "Save & Done"; notes save on their own. "Call back" dials the
+ * customer and asks how the call went: the outcome and notes are saved to the
+ * lead's notes, and outcomes like "Connected" update the status draft.
  */
 export function LeadDetailSheet() {
   const leadId = useAppStore((s) => s.leadDetailId);
@@ -42,6 +47,8 @@ export function LeadDetailSheet() {
   const [status, setStatus] = useState<LeadStatus>('Missed');
   const [statusOpen, setStatusOpen] = useState(false);
   const [reminder, setReminder] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
+  const [callLogged, setCallLogged] = useState<{ label: string; status?: LeadStatus } | null>(null);
 
   useEffect(() => {
     if (!lead) return;
@@ -50,9 +57,30 @@ export function LeadDetailSheet() {
     setStatus(lead.status);
     setStatusOpen(false);
     setReminder(!!lead.reminder);
+    setCallOpen(false);
+    setCallLogged(null);
   }, [leadId]); // Reset the draft only when a lead is opened.
 
   const p = lead ? leadPresentation(lead) : null;
+
+  const callBack = () => {
+    if (!lead) return;
+    // The phone app takes over on a device; the call log is waiting on return.
+    // The web preview has no dialer, so it goes straight to the call log.
+    if (Platform.OS !== 'web') Linking.openURL(`tel:${dialableNumber(lead.number).replace(/\s/g, '')}`).catch(() => {});
+    setCallOpen(true);
+  };
+
+  const logCall = (outcome: CallOutcome, callNotes: string) => {
+    if (!lead) return;
+    setLeadNotes(lead.id, saveNoteVersion(notes, callNoteText(outcome, callNotes), user.name));
+    const next = callOutcome(outcome).leadStatus;
+    const changes = next && next !== status ? next : undefined;
+    if (changes) setStatus(changes);
+    if (next === 'Set for reminder') setReminder(true);
+    setCallLogged({ label: callOutcome(outcome).label, status: changes });
+    setCallOpen(false);
+  };
   const hasName = !!lead?.person;
 
   return (
@@ -120,7 +148,7 @@ export function LeadDetailSheet() {
                 fontSize={type.subhead}
                 style={layout.flex1}
                 iconLeft={<Phone size={16} color={colors.white} strokeWidth={2} />}
-                onPress={() => Linking.openURL(`tel:${dialableNumber(lead.number).replace(/\s/g, '')}`)}
+                onPress={callBack}
               />
               <Button
                 label="Request review"
@@ -135,6 +163,24 @@ export function LeadDetailSheet() {
                 }}
               />
             </View>
+
+            {callLogged ? (
+              <View style={styles.callLogged} accessibilityLiveRegion="polite">
+                <View style={styles.callLoggedIcon}>
+                  <PhoneCall size={16} color={colors.primaryAccent} strokeWidth={2.2} />
+                </View>
+                <View style={layout.flex1}>
+                  <Text size={type.callout} weight={700} color={colors.textPrimary}>
+                    Call logged: {callLogged.label}
+                  </Text>
+                  <Text size={type.footnote} color={colors.textSecondary} style={{ marginTop: 1 }}>
+                    {callLogged.status
+                      ? `Added to notes. Status set to ${callLogged.status}. Tap Save & Done to keep it.`
+                      : 'Added to notes below.'}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
 
             <View style={{ height: 12 }} />
             {reminder ? (
@@ -188,6 +234,7 @@ export function LeadDetailSheet() {
               }}
             />
           </SheetFooter>
+          <CallOutcomeDialog visible={callOpen} number={p.number} onDismiss={() => setCallOpen(false)} onSave={logCall} />
         </>
       ) : null}
     </Sheet>
@@ -237,6 +284,25 @@ const styles = StyleSheet.create({
     borderColor: colors.borderDefault,
   },
   statusLabel: { marginTop: 20, marginBottom: 8 },
+  callLogged: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    marginTop: 12,
+    backgroundColor: colors.infoBg,
+    borderWidth: 1,
+    borderColor: colors.infoBorder,
+    borderRadius: radius.input,
+  },
+  callLoggedIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.full,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   reminder: {
     flexDirection: 'row',
     alignItems: 'center',

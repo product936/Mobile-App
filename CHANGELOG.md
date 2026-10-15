@@ -6,6 +6,7 @@ Clickable preview (always the latest version): https://claude.ai/artifact/MyroQ1
 
 ## Unreleased
 
+- **Call back outcome** ([#8](https://github.com/product936/Mobile-App/pull/8)): tapping "Call back" in Lead details now opens "How did the call go?", asking for the call status (Connected, No answer, Busy, Asked to call later or Wrong number) and optional call notes. Saving adds the call to the lead's notes, shows a "Call logged" confirmation, and moves the lead's status where the outcome makes it clear (for example, Connected sets it to Contacted).
 - **Quick feedback cleanup** ([#7](https://github.com/product936/Mobile-App/pull/7)): removed the "Skip" button next to Send feedback ("Skip for now" remains) and the repeated "How was that?" heading. The preview now re-measures the window when its frame changes size, so the phone no longer renders tiny if the page loads before the viewer has sized it.
 
 ## 2026-10-15
