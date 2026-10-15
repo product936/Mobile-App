@@ -273,7 +273,7 @@ export function LeadDetailSheet() {
               />
             )}
 
-            <LeadSummaryCard summary={leadSummary(steps, status, reminder)} />
+            <LeadSummaryCard summary={leadSummary(lead, steps, status, reminder)} />
 
             <LeadNotesSection
               key={lead.id}

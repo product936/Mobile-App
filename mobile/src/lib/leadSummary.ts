@@ -1,83 +1,69 @@
-import type { LeadStatus } from '@/data/leads';
-import { callOutcome, type JourneyStep } from '@/lib/calls';
+import type { Lead, LeadStatus } from '@/data/leads';
+import type { JourneyStep } from '@/lib/calls';
 
-export type LeadSummary = {
-  /** Where the lead stands: its current status. */
-  stage: LeadStatus;
-  /** Product the AI bot qualified the purchase intent for. */
-  intent?: string;
-  /** Interactions so far, e.g. "2 missed calls · 2 AI bot calls · 1 store manager call". */
-  interactions: string;
-  total: number;
-  /** The most recent interaction, e.g. "Called back by store manager · Converted". */
-  latest?: { title: string; when: string };
-  nextStep: string;
-};
-
-function plural(n: number, one: string, many: string) {
-  return `${n} ${n === 1 ? one : many}`;
+/** "Today, 5:55 PM" → "at 5:55 PM"; "Just now" → "just now". */
+function spoken(when: string): string {
+  const m = when.match(/^Today, (.+)$/);
+  if (m) return `at ${m[1]}`;
+  return when.charAt(0).toLowerCase() + when.slice(1);
 }
 
-/** "Call · Today, 5:55 PM" → "Today, 5:55 PM". */
-function whenOf(step: JourneyStep) {
-  return step.meta.split(' · ').slice(1).join(' · ') || step.meta;
+function times(n: number) {
+  return n === 2 ? 'twice' : `${n} times`;
 }
+
+/** Longest summary we allow: about three lines on a phone. */
+export const LEAD_SUMMARY_MAX = 140;
 
 /**
- * A short read of the lead from its journey (newest first): what has happened
- * so far, where it stands and what the customer wants, plus the next step.
+ * A short, conversational read of the lead in up to three brief sentences:
+ * how the customer got in touch and what they want, where things stand, and
+ * what to do next.
  */
-export function leadSummary(steps: JourneyStep[], stage: LeadStatus, reminder = false): LeadSummary {
-  const done = steps.filter((s) => s.kind !== 'pending');
-  const count = (kinds: JourneyStep['kind'][]) => done.filter((s) => kinds.includes(s.kind)).length;
-  const missed = count(['missed']);
-  const forms = count(['form']);
-  const visits = count(['walkin']);
-  const ai = count(['ai']);
-  const manager = count(['manager']);
+export function leadSummary(lead: Lead, steps: JourneyStep[], status: LeadStatus, reminder = false): string {
+  const intent = steps.find((s) => s.intent)?.intent;
+  const contacts = [lead.time, ...(lead.repeatContacts ?? [])];
+  const about = intent ? `, interested in the ${intent}` : '';
 
-  const parts = [
-    missed && plural(missed, 'missed call', 'missed calls'),
-    forms && plural(forms, 'enquiry form', 'enquiry forms'),
-    visits && plural(visits, 'store visit', 'store visits'),
-    ai && plural(ai, 'AI bot call', 'AI bot calls'),
-    manager && plural(manager, 'store manager call', 'store manager calls'),
-  ].filter(Boolean);
+  // How they got in touch, and what they want.
+  const first =
+    contacts.length > 1
+      ? `Called ${times(contacts.length)}, last at ${contacts[contacts.length - 1]}${about}.`
+      : `${{ Call: 'Missed call', Form: 'Enquiry form', 'Walk-in': 'Store visit' }[lead.firstContact ?? lead.source]} at ${lead.time}${about}.`;
 
-  const latestStep = done[0];
-  const latest = latestStep
-    ? {
-        title: latestStep.log ? `${latestStep.title} · ${callOutcome(latestStep.log.outcome).label}` : latestStep.title,
-        when: whenOf(latestStep),
-      }
-    : undefined;
+  // Where things stand, from the store manager's latest call.
+  const pending = steps[0]?.kind === 'pending';
+  const lastCall = steps.find((s) => s.kind === 'manager')?.log;
+  let stand: string;
+  if (!lastCall) {
+    stand = status === 'Converted' ? 'Marked as converted.' : 'The store hasn\'t called yet.';
+  } else {
+    const when = spoken(lastCall.when);
+    stand = {
+      converted: pending ? `Converted ${when}, then called again.` : `Converted on your call ${when}.`,
+      answered: `You spoke to them ${when}.`,
+      no_answer: `Your call ${when} went unanswered.`,
+      busy: `Their line was busy ${when}.`,
+      call_later: 'They asked you to call back later.',
+      wrong_number: 'The number is wrong.',
+    }[lastCall.outcome];
+  }
 
-  return {
-    stage,
-    intent: steps.find((s) => s.intent)?.intent,
-    interactions: parts.join(' · '),
-    total: done.length,
-    latest,
-    nextStep: nextStepFor(steps, reminder),
-  };
+  return `${first} ${stand} ${nextStep(pending, lastCall?.outcome, reminder)}`;
 }
 
-function nextStepFor(steps: JourneyStep[], reminder: boolean): string {
-  if (steps[0]?.kind === 'pending') return 'Call the customer back, then add a note about the call.';
-  const lastCall = steps.find((s) => s.kind === 'manager')?.log;
-  switch (lastCall?.outcome) {
+function nextStep(pending: boolean, outcome: string | undefined, reminder: boolean): string {
+  if (pending || !outcome) return 'Call them next and add a note.';
+  switch (outcome) {
     case 'converted':
-      return 'Request a review from the customer.';
+      return 'Ask them for a review next.';
     case 'answered':
-      return 'Follow up on what you agreed on the call.';
+      return 'Follow up on what you agreed.';
     case 'call_later':
-      return reminder ? 'Call back tomorrow. Your reminder is set.' : 'Call back later, as the customer asked.';
-    case 'no_answer':
-    case 'busy':
-      return 'Try calling again.';
+      return reminder ? 'Your reminder is set for tomorrow.' : 'Call back when it suits them.';
     case 'wrong_number':
-      return 'No follow-up needed. The number is wrong.';
+      return 'No follow-up needed.';
     default:
-      return 'Call the customer back, then add a note about the call.';
+      return 'Try calling again.';
   }
 }
