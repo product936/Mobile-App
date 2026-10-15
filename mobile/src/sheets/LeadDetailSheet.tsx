@@ -28,6 +28,7 @@ export function LeadDetailSheet() {
   const save = useAppStore((s) => s.saveLeadEdits);
   const openAddLead = useAppStore((s) => s.openAddLead);
   const setLeadNotes = useAppStore((s) => s.setLeadNotes);
+  const openFeedback = useAppStore((s) => s.openFeedback);
   const { user } = useRoleConfig();
   const current = useLeads().find((l) => l.id === leadId);
   // Keep rendering the last lead while the sheet animates closed.
@@ -179,8 +180,11 @@ export function LeadDetailSheet() {
             <Button
               label="Save & Done"
               onPress={() => {
+                const statusChanged = status !== lead.status;
                 save(lead.id, { name: name.trim() || undefined, status, reminder });
                 close();
+                // A status change is a completed task: ask for optional quick feedback once the sheet has closed.
+                if (statusChanged) setTimeout(() => openFeedback('status_update'), 400);
               }}
             />
           </SheetFooter>

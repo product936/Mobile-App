@@ -52,6 +52,7 @@ Every colour, size, radius, shadow and duration comes from `src/theme/tokens.ts`
 
 ## Behaviour carried over from the design review
 
+- Sending a review request ends on a "Review request sent" confirmation, followed by an optional "Quick feedback?" rating (five faces plus an optional comment). The same feedback dialog follows a lead status change saved in Lead details.
 - Lead details shows a coloured status pill next to the title, a status dropdown, versioned notes (edit, delete with confirmation, version history) and a customer history timeline with a playable call recording.
 
 - Missed-call numbers are masked; recovered calls show the full number; lead-form submissions show the customer's name.
@@ -68,4 +69,4 @@ Every colour, size, radius, shadow and duration comes from `src/theme/tokens.ts`
 
 ## Not wired yet
 
-These were visual-only in the prototype and need a backend or product decision: real OTP and lead APIs, the review Reply and "Draft with AI" actions, QR download, image upload (camera or gallery), support ticket submission, create post, invite teammate, the support link, the store switcher in the home header, the store selector in "Add a lead", and the "View note", "View chat" and "View details" buttons in a lead's customer history. The call recording in customer history plays a simulated 32-second clip, and every lead shows the same sample notes and history until real lead data is connected. The QR code is a placeholder pattern, not a scannable code. The trash icon on unreplied reviews opens the same "Delete this reply?" dialog as the design, but there is no reply to delete there yet.
+These were visual-only in the prototype and need a backend or product decision: real OTP and lead APIs, sending review requests and storing feedback (both mocked in `src/services/feedback.ts`), the review Reply and "Draft with AI" actions, QR download, image upload (camera or gallery), support ticket submission, create post, invite teammate, the support link, the store switcher in the home header, the store selector in "Add a lead", and the "View note", "View chat" and "View details" buttons in a lead's customer history. The call recording in customer history plays a simulated 32-second clip, and every lead shows the same sample notes and history until real lead data is connected. The QR code is a placeholder pattern, not a scannable code. The trash icon on unreplied reviews opens the same "Delete this reply?" dialog as the design, but there is no reply to delete there yet.
