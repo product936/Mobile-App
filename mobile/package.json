@@ -47,6 +47,7 @@
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {
+      "^lucide-react-native$": "<rootDir>/test/lucideMock.js",
       "^@/(.*)$": "<rootDir>/src/$1"
     }
   }

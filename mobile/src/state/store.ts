@@ -5,7 +5,10 @@ import { SEED_NOTE_VERSIONS, type DateRange } from '@/data/content';
 import { LEADS, type Lead, type LeadSourceFilter, type LeadStatusFilter } from '@/data/leads';
 import { EMPTY_SELECTION, toggleSelection, type LocationSelection } from '@/lib/format';
 import type { LeadNotes } from '@/lib/notes';
+import type { FeedbackContext } from '@/services/feedback';
 import type { FilterLevel } from '@/data/locations';
+
+export type AddLeadStep = 'form' | 'review' | 'sent';
 
 export type SheetName = 'location' | 'date' | 'source' | 'status' | 'reviewFilter' | 'support' | 'upload' | null;
 
@@ -60,14 +63,18 @@ type AppState = {
   sheet: SheetName;
   openSheet: (sheet: Exclude<SheetName, null>) => void;
   closeSheet: () => void;
-  addLead: { open: boolean; step: 'form' | 'review' };
+  addLead: { open: boolean; step: AddLeadStep };
   openAddLead: (step?: 'form' | 'review') => void;
-  setAddLeadStep: (step: 'form' | 'review') => void;
+  setAddLeadStep: (step: AddLeadStep) => void;
   closeAddLead: () => void;
   leadDetailId: string | null;
   openLeadDetail: (id: string) => void;
   closeLeadDetail: () => void;
   confirmDeleteReplyId: string | null;
+  /** Which task the "Quick feedback" dialog is asking about, when it is open. */
+  feedbackPrompt: FeedbackContext | null;
+  openFeedback: (context: FeedbackContext) => void;
+  closeFeedback: () => void;
   setConfirmDeleteReply: (id: string | null) => void;
 
   // Data the user changes
@@ -98,6 +105,7 @@ const initialOverlays = {
   addLead: { open: false, step: 'form' as const },
   leadDetailId: null,
   confirmDeleteReplyId: null,
+  feedbackPrompt: null as FeedbackContext | null,
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -140,6 +148,8 @@ export const useAppStore = create<AppState>((set) => ({
   openLeadDetail: (leadDetailId) => set({ leadDetailId }),
   closeLeadDetail: () => set({ leadDetailId: null }),
   setConfirmDeleteReply: (confirmDeleteReplyId) => set({ confirmDeleteReplyId }),
+  openFeedback: (feedbackPrompt) => set({ feedbackPrompt }),
+  closeFeedback: () => set({ feedbackPrompt: null }),
 
   leadEdits: {},
   saveLeadEdits: (id, edits) => set((s) => ({ leadEdits: { ...s.leadEdits, [id]: { ...s.leadEdits[id], ...edits } } })),

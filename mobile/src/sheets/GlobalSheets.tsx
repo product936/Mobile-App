@@ -1,6 +1,7 @@
 import { DATE_RANGES } from '@/data/content';
 import { LEAD_SOURCE_FILTERS, LEAD_STATUS_FILTERS } from '@/data/leads';
 import { AddLeadSheet } from '@/sheets/AddLeadSheet';
+import { FeedbackDialog } from '@/sheets/FeedbackDialog';
 import { LeadDetailSheet } from '@/sheets/LeadDetailSheet';
 import { LocationSheet } from '@/sheets/LocationSheet';
 import { RadioSheet } from '@/sheets/RadioSheet';
@@ -39,6 +40,7 @@ export function GlobalSheets() {
       <SupportSheet />
       <UploadSheet />
       <DeleteReplyDialog />
+      <FeedbackDialog />
     </>
   );
 }

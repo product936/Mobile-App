@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { colors, motion } from '@/theme/tokens';
@@ -44,7 +44,11 @@ export function Dialog({
   return (
     <Modal transparent visible={visible} animationType="fade" statusBarTranslucent onRequestClose={onDismiss}>
       <Pressable style={styles.scrim} onPress={onDismiss} accessibilityLabel="Dismiss" accessibilityRole="button" />
-      <View style={[styles.center, { paddingHorizontal: horizontalInset }]} pointerEvents="box-none">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.center, { paddingHorizontal: horizontalInset }]}
+        pointerEvents="box-none"
+      >
         <Animated.View
           accessibilityViewIsModal
           accessibilityRole={role === 'alert' ? 'alert' : undefined}
@@ -52,7 +56,7 @@ export function Dialog({
         >
           {children}
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

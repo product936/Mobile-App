@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { ChevronDown, ChevronLeft, Copy, MapPin, ScanLine, Send, UserPlus } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronLeft, Copy, MapPin, ScanLine, Send, UserPlus } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { Chip, SegmentedTabs } from '@/components/controls';
@@ -13,6 +13,7 @@ import { Sheet, SheetCloseButton, SheetFooter, SheetGrabber } from '@/components
 import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
 import { PURCHASE_OPTIONS } from '@/data/leads';
+import { sendReviewRequest, type ReviewChannel } from '@/services/feedback';
 import { useAppStore } from '@/state/store';
 import { colors, leading, radius, type } from '@/theme/tokens';
 
@@ -27,7 +28,8 @@ type ShareMode = 'qr' | 'message';
 export function AddLeadSheet() {
   const { open, step } = useAppStore((s) => s.addLead);
   const setStep = useAppStore((s) => s.setAddLeadStep);
-  const close = useAppStore((s) => s.closeAddLead);
+  const closeSheet = useAppStore((s) => s.closeAddLead);
+  const openFeedback = useAppStore((s) => s.openFeedback);
 
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
@@ -37,6 +39,9 @@ export function AddLeadSheet() {
   const [notes, setNotes] = useState('');
   const [shareMode, setShareMode] = useState<ShareMode>('qr');
   const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState<ReviewChannel | null>(null);
+  const [sendFailed, setSendFailed] = useState(false);
+  const [sentVia, setSentVia] = useState<ReviewChannel>('whatsapp');
 
   useEffect(() => {
     if (!open) return;
@@ -48,12 +53,41 @@ export function AddLeadSheet() {
     setNotes('');
     setShareMode('qr');
     setCopied(false);
+    setSending(null);
+    setSendFailed(false);
   }, [open]);
 
   const onReview = step === 'review';
+  const onSent = step === 'sent';
+
+  // Closing the confirmation asks for quick feedback, once the sheet has slid away.
+  const close = () => {
+    closeSheet();
+    if (onSent) setTimeout(() => openFeedback('review_request'), 400);
+  };
+
+  const send = async (channel: ReviewChannel) => {
+    if (sending) return;
+    setSending(channel);
+    setSendFailed(false);
+    try {
+      await sendReviewRequest(channel, shareText(shareMode));
+      setSentVia(channel);
+      setStep('sent');
+    } catch {
+      setSendFailed(true);
+    } finally {
+      setSending(null);
+    }
+  };
 
   return (
-    <Sheet visible={open} onClose={close} heightRatio={0.94} accessibilityLabel={onReview ? 'Request a review' : 'Add a lead'}>
+    <Sheet
+      visible={open}
+      onClose={close}
+      heightRatio={0.94}
+      accessibilityLabel={onSent ? 'Review request sent' : onReview ? 'Request a review' : 'Add a lead'}
+    >
       <SheetGrabber bottom={4} />
       <View style={styles.topBar}>
         {onReview ? (
@@ -65,7 +99,9 @@ export function AddLeadSheet() {
       </View>
 
       <ScrollView style={layout.flex1} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        {onReview ? (
+        {onSent ? (
+          <SentConfirmation channel={sentVia} />
+        ) : onReview ? (
           <>
             <Text size={type.title1} weight={700} lineHeight={leading.tight} color={colors.textPrimary} accessibilityRole="header">
               Request a review
@@ -230,8 +266,15 @@ export function AddLeadSheet() {
       </ScrollView>
 
       <SheetFooter>
-        {onReview ? (
+        {onSent ? (
+          <Button label="Done" onPress={close} />
+        ) : onReview ? (
           <>
+            {sendFailed ? (
+              <Text size={type.footnote} color={colors.error} style={{ marginBottom: 8 }} accessibilityRole="alert">
+                We could not send the review request. Check your connection and try again.
+              </Text>
+            ) : null}
             <Text size={type.subhead} color={colors.textTertiary} style={{ marginBottom: 10 }}>
               Send it on
             </Text>
@@ -241,14 +284,18 @@ export function AddLeadSheet() {
                 variant="whatsapp"
                 style={layout.flex1}
                 iconLeft={<WhatsAppGlyph />}
-                onPress={() => Linking.openURL(`whatsapp://send?text=${encodeURIComponent(shareText(shareMode))}`)}
+                loading={sending === 'whatsapp'}
+                disabled={sending === 'sms'}
+                onPress={() => send('whatsapp')}
               />
               <Button
                 label="SMS"
                 variant="outlineAccent"
                 style={layout.flex1}
                 iconLeft={<Send size={18} color={colors.primaryAccent} strokeWidth={2} />}
-                onPress={() => Linking.openURL(smsUrl(shareText(shareMode)))}
+                loading={sending === 'sms'}
+                disabled={sending === 'whatsapp'}
+                onPress={() => send('sms')}
               />
             </View>
           </>
@@ -264,9 +311,40 @@ function shareText(mode: ShareMode) {
   return mode === 'message' ? REVIEW_MESSAGE : STORE.reviewLink;
 }
 
-function smsUrl(body: string) {
-  // iOS separates the body with "&", Android with "?".
-  return Platform.OS === 'ios' ? `sms:&body=${encodeURIComponent(body)}` : `sms:?body=${encodeURIComponent(body)}`;
+/** Success state after a review request is sent. */
+function SentConfirmation({ channel }: { channel: ReviewChannel }) {
+  const via = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+  return (
+    <View style={styles.sent} accessibilityLiveRegion="polite">
+      <View style={styles.sentIcon}>
+        <Check size={34} color={colors.success} strokeWidth={2.6} />
+      </View>
+      <Text size={type.title2} weight={700} color={colors.textPrimary} align="center" accessibilityRole="header">
+        Review request sent
+      </Text>
+      <Text size={type.body} color={colors.textSecondary} align="center" style={{ marginTop: 8 }}>
+        We sent your store's review link to the customer on {via}. Their review appears in Reviews once they post it on Google.
+      </Text>
+      <View style={styles.sentDetails}>
+        <DetailRow label="Sent via" value={via} />
+        <DetailRow label="Review link" value={STORE.reviewLink.replace('https://', '')} />
+        <DetailRow label="Store" value={STORE.locationName} last />
+      </View>
+    </View>
+  );
+}
+
+function DetailRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <View style={[styles.detailRow, !last && styles.detailDivider]}>
+      <Text size={type.subhead} color={colors.textTertiary}>
+        {label}
+      </Text>
+      <Text size={type.subhead} weight={600} color={colors.textPrimary} numberOfLines={1} style={{ flexShrink: 1, textAlign: 'right' }}>
+        {value}
+      </Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -316,6 +394,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sent: { alignItems: 'center', paddingTop: 36 },
+  sentIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.full,
+    backgroundColor: colors.successBg,
+    borderWidth: 1,
+    borderColor: colors.successBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  sentDetails: {
+    alignSelf: 'stretch',
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    borderRadius: radius.card,
+    backgroundColor: colors.surfaceElevated,
+  },
+  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  detailDivider: { borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
   message: {
     padding: 14,
     backgroundColor: colors.surfaceBase,
