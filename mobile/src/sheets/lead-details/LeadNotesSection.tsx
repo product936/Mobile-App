@@ -19,12 +19,10 @@ export function LeadNotesSection({
   notes,
   onChange,
   author,
-  label = 'Notes',
 }: {
   notes: LeadNotes;
   onChange: (notes: LeadNotes) => void;
   author: string;
-  label?: string;
 }) {
   const current = currentNote(notes);
   const [editing, setEditing] = useState(false);
@@ -47,7 +45,7 @@ export function LeadNotesSection({
     <View>
       <View style={styles.head}>
         <Text size={type.subhead} weight={700} color={colors.textSecondary}>
-          {label}
+          Notes
         </Text>
         <View style={[layout.row, { gap: 2, marginRight: -6 }]}>
           {notes.versions.length > 0 ? (
@@ -227,7 +225,7 @@ function Tag({ label, bg, fg }: { label: string; bg: string; fg: string }) {
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 20, marginBottom: 8 },
   iconBtn: { width: 34, height: 34, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   saved: {
     paddingVertical: 12,

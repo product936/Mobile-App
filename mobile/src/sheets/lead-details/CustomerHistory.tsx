@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import {
   BadgeCheck,
   Bot,
@@ -17,7 +18,8 @@ import { layout } from '@/components/primitives';
 import { Text } from '@/components/Text';
 import { callOutcome, type JourneyStep, type OutcomeTone } from '@/lib/calls';
 import { usePlayback } from '@/lib/usePlayback';
-import { colors, radius, type } from '@/theme/tokens';
+import { useReducedMotion } from '@/lib/useReducedMotion';
+import { colors, motion, radius, type } from '@/theme/tokens';
 
 const KIND: Record<JourneyStep['kind'], { Icon: LucideIcon; bg: string; fg: string }> = {
   missed: { Icon: PhoneMissed, bg: colors.red100, fg: colors.error },
@@ -36,9 +38,10 @@ const TONE: Record<OutcomeTone, { bg: string; border: string; fg: string }> = {
 };
 
 /**
- * The lead's journey, newest first. Logged calls show their outcome next to
- * the title and open their note with "View note" (or "Add note" when it has
- * none). The AI bot's own call back is read-only.
+ * The lead's journey, newest first, with each step's time on the right.
+ * Logged calls open their note with "View note"; a known outcome shows as a
+ * chip by the title. The AI bot's call back is read-only: its recording, or a
+ * quiet progress state while the recording is on its way.
  */
 export function CustomerHistory({ steps, onAddNote }: { steps: JourneyStep[]; onAddNote: (step: JourneyStep) => void }) {
   return (
@@ -65,16 +68,25 @@ export function CustomerHistory({ steps, onAddNote }: { steps: JourneyStep[]; on
               </View>
               {!last ? <View style={styles.line} /> : null}
             </View>
-            <View style={[layout.flex1, !last && { paddingBottom: 20 }]}>
-              <View style={styles.titleLine}>
-                <Text size={type.callout} weight={600} color={pending ? colors.textSecondary : colors.textPrimary}>
-                  {step.title}
-                </Text>
-                {step.log ? <OutcomeChip outcome={step.log.outcome} /> : null}
+            <View style={[layout.flex1, styles.body, !last && { paddingBottom: 20 }]}>
+              <View style={styles.titleRow2}>
+                <View style={[styles.titleLine, layout.flex1]}>
+                  <Text size={type.callout} weight={600} color={pending ? colors.textSecondary : colors.textPrimary}>
+                    {step.title}
+                  </Text>
+                  {step.log?.outcome ? <OutcomeChip outcome={step.log.outcome} /> : null}
+                </View>
+                {step.time ? (
+                  <Text size={type.footnote} color={colors.textTertiary} style={styles.time}>
+                    {step.time}
+                  </Text>
+                ) : null}
               </View>
-              <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 2 }}>
-                {step.meta}
-              </Text>
+              {step.meta ? (
+                <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 2 }}>
+                  {step.meta}
+                </Text>
+              ) : null}
 
               {step.intent ? (
                 <View style={styles.tags}>
@@ -93,6 +105,7 @@ export function CustomerHistory({ steps, onAddNote }: { steps: JourneyStep[]; on
               ) : null}
 
               {step.recordingSeconds ? <Recording duration={step.recordingSeconds} /> : null}
+              {step.recordingPending ? <RecordingOnItsWay /> : null}
 
               {action ? (
                 <PressableScale
@@ -122,6 +135,50 @@ function OutcomeChip({ outcome }: { outcome: Parameters<typeof callOutcome>[0] }
       <Text size={type.caption} weight={700} color={t.fg} lineHeight={1.2}>
         {o.label}
       </Text>
+    </View>
+  );
+}
+
+/**
+ * Not interactive: tells the user the AI bot's call recording is being
+ * fetched, with a slow sweep on a thin bar (a still bar with reduced motion).
+ */
+function RecordingOnItsWay() {
+  const reduced = useReducedMotion();
+  const sweep = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reduced) return;
+    const loop = Animated.loop(
+      Animated.timing(sweep, { toValue: 1, duration: 1600, easing: motion.easeOut, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, sweep]);
+
+  return (
+    <View
+      style={styles.pendingBox}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Getting the call recording. It will be ready within 5 minutes."
+    >
+      <Text size={type.footnote} weight={600} color={colors.textSecondary}>
+        Getting the call recording
+      </Text>
+      <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 1 }}>
+        It'll be ready to play within 5 minutes.
+      </Text>
+      <View style={styles.pendingTrack}>
+        <Animated.View
+          style={[
+            styles.pendingFill,
+            reduced
+              ? { width: '35%' }
+              : { transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-90, 260] }) }] },
+          ]}
+        />
+      </View>
     </View>
   );
 }
@@ -157,6 +214,27 @@ const styles = StyleSheet.create({
   rail: { width: 32, alignItems: 'center' },
   icon: { width: 32, height: 32, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   iconPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.borderDefault },
+  // As tall as the icon, with the title centred on it.
+  body: { minHeight: 32, paddingTop: 5 },
+  titleRow2: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  time: { paddingTop: 2 },
+  pendingBox: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.input,
+    backgroundColor: colors.surfaceBase,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  pendingTrack: {
+    height: 3,
+    marginTop: 8,
+    borderRadius: radius.full,
+    backgroundColor: colors.borderDefault,
+    overflow: 'hidden',
+  },
+  pendingFill: { width: 90, height: '100%', borderRadius: radius.full, backgroundColor: colors.violet600, opacity: 0.6 },
   titleLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 4 },
   outcome: {
     height: 22,

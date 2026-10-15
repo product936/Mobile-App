@@ -3,20 +3,19 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PhoneCall, X } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
-import { Chip } from '@/components/controls';
 import { Dialog } from '@/components/Dialog';
 import { FieldLabel, NotesField } from '@/components/fields';
 import { IconTile, layout } from '@/components/primitives';
 import { Text } from '@/components/Text';
-import { CALL_NOTES_MAX, CALL_OUTCOMES, type CallOutcome } from '@/lib/calls';
+import { CALL_NOTES_MAX } from '@/lib/calls';
 import { colors, radius, shadows, type } from '@/theme/tokens';
 
-export type CallNote = { outcome: CallOutcome; notes: string };
+export type CallNote = { notes: string };
 
 /**
- * A note against the store manager's call back: the call outcome and
- * free-text notes on what happened. Opens from "Call back" and from the call
- * steps in Customer history. Closing or tapping outside saves nothing.
+ * A note against the store manager's call back: what happened on the call, in
+ * their own words. Opens from "Call back" and from the call steps in Customer
+ * history. Closing or tapping outside saves nothing.
  */
 export function CallOutcomeDialog({
   visible,
@@ -29,16 +28,15 @@ export function CallOutcomeDialog({
   /** Number shown to the user, e.g. "98551 35120". */
   number: string;
   /** Prefills an existing note when viewing one. */
-  initial: { outcome?: CallOutcome; notes?: string };
+  initial: { notes?: string };
   onDismiss: () => void;
   onSave: (note: CallNote) => void;
 }) {
-  const [outcome, setOutcome] = useState<CallOutcome | null>(null);
   const [notes, setNotes] = useState('');
+  const canSave = notes.trim().length > 0;
 
   useEffect(() => {
     if (!visible) return;
-    setOutcome(initial.outcome ?? null);
     setNotes(initial.notes ?? '');
   }, [visible]); // Prefill only when the dialog opens.
 
@@ -63,18 +61,9 @@ export function CallOutcomeDialog({
 
       <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View>
-          <FieldLabel>Call outcome</FieldLabel>
-          <View style={styles.outcomes} accessibilityRole="radiogroup" accessibilityLabel="Call outcome">
-            {CALL_OUTCOMES.map((o) => (
-              <Chip key={o.id} label={o.label} selected={o.id === outcome} onPress={() => setOutcome(o.id)} />
-            ))}
-          </View>
-        </View>
-
-        <View style={{ marginTop: 18 }}>
-          <FieldLabel optional>Call notes</FieldLabel>
+          <FieldLabel>Call notes</FieldLabel>
           <NotesField
-            accessibilityLabel="Call notes, optional"
+            accessibilityLabel="Call notes"
             value={notes}
             onChangeText={(t) => setNotes(t.slice(0, CALL_NOTES_MAX))}
             maxLength={CALL_NOTES_MAX}
@@ -89,13 +78,13 @@ export function CallOutcomeDialog({
 
       <Button
         label="Save call note"
-        disabled={!outcome}
-        onPress={() => outcome && onSave({ outcome, notes: notes.trim() })}
+        disabled={!canSave}
+        onPress={() => canSave && onSave({ notes: notes.trim() })}
         style={{ marginTop: 14 }}
       />
-      {!outcome ? (
+      {!canSave ? (
         <Text size={type.footnote} color={colors.textTertiary} align="center" style={{ marginTop: 8 }}>
-          Pick a call outcome to save.
+          Write a note to save it.
         </Text>
       ) : null}
     </Dialog>
@@ -113,5 +102,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  outcomes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

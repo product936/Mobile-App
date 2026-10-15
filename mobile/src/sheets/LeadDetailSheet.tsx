@@ -4,30 +4,29 @@ import { AlarmClock, Check, Link2, PhoneCall, MapPin, Pencil, Phone, ShoppingBag
 
 import { Button } from '@/components/Button';
 import { layout } from '@/components/primitives';
-import { Sheet, SheetBottomInset, SheetGrabber, SheetHeader } from '@/components/Sheet';
+import { Sheet, SheetFooter, SheetGrabber, SheetHeader } from '@/components/Sheet';
 import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
 import type { LeadStatus } from '@/data/leads';
-import { callOutcome, currentCycle, leadJourney, type CallLog, type CallOutcome, type JourneyStep } from '@/lib/calls';
+import { currentCycle, leadJourney, type CallLog, type JourneyStep } from '@/lib/calls';
 import { dialableNumber, leadPresentation } from '@/lib/leads';
-import { leadSummary } from '@/lib/leadSummary';
 import { CallOutcomeDialog, type CallNote } from '@/sheets/lead-details/CallOutcomeDialog';
-import { LeadSummaryCard } from '@/sheets/lead-details/LeadSummaryCard';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
-import { LeadNotesDialog, NotesButton } from '@/sheets/lead-details/LeadNotesDialog';
+import { LeadNotesSection } from '@/sheets/lead-details/LeadNotesSection';
 import { StatusPill, StatusSelect } from '@/sheets/lead-details/StatusField';
 import { useAppStore, useLeadCalls, useLeadNotes, useLeads, useRoleConfig } from '@/state/store';
 import { fontFamily } from '@/theme/fonts';
-import { colors, radius, type } from '@/theme/tokens';
+import { colors, radius, shadows, type } from '@/theme/tokens';
 
 /**
  * Lead details: name (added or edited), masked number for missed calls,
- * source and location, status, quick actions, a next-day reminder, versioned
- * notes and the customer's history. Everything saves as it changes: status
- * and reminder straight away, the name when editing ends or the sheet
- * closes. "Call back" dials the customer and asks what happened on the call;
- * the call note goes to Customer history and its outcome sets the status.
- * If the status changed, quick feedback is offered once the sheet closes.
+ * source and location, status, a next-day reminder, versioned notes and the
+ * customer's history, with "Call back" and "Request review" in a sticky bar
+ * at the bottom. Everything saves as it changes: status and reminder straight
+ * away, the name when editing ends or the sheet closes. "Call back" dials the
+ * customer and asks what happened on the call; the call note goes to Customer
+ * history. If the status changed, quick feedback is offered once the sheet
+ * closes.
  */
 export function LeadDetailSheet() {
   const leadId = useAppStore((s) => s.leadDetailId);
@@ -52,12 +51,11 @@ export function LeadDetailSheet() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [reminder, setReminder] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
   // What the call note dialog opens with, and the call it edits (if any).
-  const [callTarget, setCallTarget] = useState<{ initial: { outcome?: CallOutcome; notes?: string }; log?: CallLog }>({
+  const [callTarget, setCallTarget] = useState<{ initial: { notes?: string }; log?: CallLog }>({
     initial: {},
   });
-  const [callLogged, setCallLogged] = useState<{ label: string; status?: LeadStatus } | null>(null);
+  const [callLogged, setCallLogged] = useState<{ status?: LeadStatus } | null>(null);
   // Status when the sheet opened, to offer quick feedback on close if it changed.
   const openedStatus = useRef<LeadStatus | null>(null);
 
@@ -70,7 +68,6 @@ export function LeadDetailSheet() {
     setStatusOpen(false);
     setReminder(!!lead.reminder);
     setCallOpen(false);
-    setNotesOpen(false);
     setCallLogged(null);
   }, [leadId]); // Reset the draft only when a lead is opened.
 
@@ -113,30 +110,28 @@ export function LeadDetailSheet() {
     const log = step.log;
     setCallTarget(
       log
-        ? { initial: { outcome: log.outcome, notes: log.notes }, log }
+        ? { initial: { notes: log.notes }, log }
         : { initial: {} },
     );
     setCallOpen(true);
   };
 
-  const logCall = ({ outcome, notes: callNotes }: CallNote) => {
+  const logCall = ({ notes: callNotes }: CallNote) => {
     if (!lead) return;
     const existing = callTarget.log;
     saveLeadCall(lead.id, {
       id: existing?.id ?? `call-${Date.now()}`,
       cycle: existing?.cycle ?? currentCycle(lead),
       by: 'store_manager',
-      outcome,
+      outcome: existing?.outcome,
       notes: callNotes,
       when: existing?.when ?? 'Just now',
       author: existing?.author ?? user.name,
     });
-    const next = callOutcome(outcome).leadStatus;
-    const changes = next !== status ? next : undefined;
+    // A new call moves the lead to "Called by store manager", unless it is already converted.
+    const changes = !existing && status !== 'Converted' && status !== 'Called by store manager' ? 'Called by store manager' : undefined;
     if (changes) changeStatus(changes);
-    // Asked to call later: remind the store manager tomorrow.
-    if (outcome === 'call_later') changeReminder(true);
-    setCallLogged({ label: callOutcome(outcome).label, status: changes });
+    setCallLogged({ status: changes });
     setCallOpen(false);
   };
   const hasName = !!lead?.person;
@@ -150,7 +145,6 @@ export function LeadDetailSheet() {
         paddingX={22}
         topPadding={2}
         accessory={lead ? <StatusPill status={status} /> : null}
-        actions={lead ? <NotesButton notes={notes} onPress={() => setNotesOpen(true)} /> : null}
       />
       {lead && p ? (
         <>
@@ -203,29 +197,6 @@ export function LeadDetailSheet() {
               }}
             />
 
-            <View style={[layout.row, { gap: 10, marginTop: 20 }]}>
-              <Button
-                label="Call back"
-                height={46}
-                fontSize={type.subhead}
-                style={layout.flex1}
-                iconLeft={<Phone size={16} color={colors.white} strokeWidth={2} />}
-                onPress={callBack}
-              />
-              <Button
-                label="Request review"
-                variant="outlineAccent"
-                height={46}
-                fontSize={type.subhead}
-                style={layout.flex1}
-                iconLeft={<Link2 size={16} color={colors.primaryAccent} strokeWidth={2} />}
-                onPress={() => {
-                  closeSheet({ askFeedback: false });
-                  openAddLead('review');
-                }}
-              />
-            </View>
-
             {callLogged ? (
               <View style={styles.callLogged} accessibilityLiveRegion="polite">
                 <View style={styles.callLoggedIcon}>
@@ -233,7 +204,7 @@ export function LeadDetailSheet() {
                 </View>
                 <View style={layout.flex1}>
                   <Text size={type.callout} weight={700} color={colors.textPrimary}>
-                    Call note saved: {callLogged.label}
+                    Call note saved
                   </Text>
                   <Text size={type.footnote} color={colors.textSecondary} style={{ marginTop: 1 }}>
                     {callLogged.status
@@ -244,7 +215,7 @@ export function LeadDetailSheet() {
               </View>
             ) : null}
 
-            <View style={{ height: 12 }} />
+            <View style={{ height: 16 }} />
             {reminder ? (
               <View style={styles.reminder} accessibilityLiveRegion="polite">
                 <View style={styles.reminderIcon}>
@@ -276,18 +247,39 @@ export function LeadDetailSheet() {
               />
             )}
 
-            <LeadSummaryCard summary={leadSummary(lead, steps, status, reminder)} />
+            <LeadNotesSection
+              key={lead.id}
+              notes={notes}
+              onChange={(next) => setLeadNotes(lead.id, next)}
+              author={user.name}
+            />
 
             <CustomerHistory steps={steps} onAddNote={addNote} />
           </ScrollView>
-          <SheetBottomInset />
-          <LeadNotesDialog
-            visible={notesOpen}
-            notes={notes}
-            onChange={(next) => setLeadNotes(lead.id, next)}
-            author={user.name}
-            onDismiss={() => setNotesOpen(false)}
-          />
+          <SheetFooter divider={false} style={styles.stickyBar}>
+            <View style={[layout.row, { gap: 10 }]}>
+              <Button
+                label="Call back"
+                height={48}
+                fontSize={type.subhead}
+                style={layout.flex1}
+                iconLeft={<Phone size={16} color={colors.white} strokeWidth={2} />}
+                onPress={callBack}
+              />
+              <Button
+                label="Request review"
+                variant="outlineAccent"
+                height={48}
+                fontSize={type.subhead}
+                style={[layout.flex1, { backgroundColor: colors.white }]}
+                iconLeft={<Link2 size={16} color={colors.primaryAccent} strokeWidth={2} />}
+                onPress={() => {
+                  closeSheet({ askFeedback: false });
+                  openAddLead('review');
+                }}
+              />
+            </View>
+          </SheetFooter>
           <CallOutcomeDialog
             visible={callOpen}
             number={p.number}
@@ -313,7 +305,8 @@ function MetaChip({ icon, label, truncate }: { icon: React.ReactNode; label: str
 }
 
 const styles = StyleSheet.create({
-  body: { paddingTop: 16, paddingHorizontal: 22, paddingBottom: 20 },
+  body: { paddingTop: 16, paddingHorizontal: 22, paddingBottom: 24 },
+  stickyBar: { backgroundColor: colors.surfaceElevated, boxShadow: shadows.sheet },
   edit: {
     width: 30,
     height: 30,
@@ -349,7 +342,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    marginTop: 12,
+    marginTop: 16,
     backgroundColor: colors.infoBg,
     borderWidth: 1,
     borderColor: colors.infoBorder,

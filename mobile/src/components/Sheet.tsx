@@ -128,7 +128,6 @@ export function SheetHeader({
   topPadding = 6,
   divider = true,
   accessory,
-  actions,
 }: {
   title: string;
   onClose: () => void;
@@ -137,8 +136,6 @@ export function SheetHeader({
   divider?: boolean;
   /** Shown right after the title, e.g. a status chip. */
   accessory?: ReactNode;
-  /** Buttons shown just before the close button. */
-  actions?: ReactNode;
 }) {
   return (
     <View
@@ -154,10 +151,7 @@ export function SheetHeader({
         </Text>
         {accessory}
       </View>
-      <View style={styles.headerActions}>
-        {actions}
-        <SheetCloseButton onPress={onClose} />
-      </View>
+      <SheetCloseButton onPress={onClose} />
     </View>
   );
 }
@@ -216,7 +210,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 12,
   },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, minWidth: 0 },
   headerDivider: { borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
   footerDivider: { borderTopWidth: 1, borderTopColor: colors.borderSubtle },

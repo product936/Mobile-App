@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { SEED_LEAD_CALLS } from '@/data/content';
 import { LEADS } from '@/data/leads';
-import { addMinutes, CALL_OUTCOMES, callOutcome, currentCycle, leadJourney, upsertCallLog, type CallLog } from '@/lib/calls';
+import { addMinutes, callOutcome, currentCycle, leadJourney, shortTime, upsertCallLog, type CallLog } from '@/lib/calls';
 import { CallOutcomeDialog } from '@/sheets/lead-details/CallOutcomeDialog';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
 
@@ -18,20 +18,16 @@ const managerCall: CallLog = {
   author: 'Tarun Sobhani',
 };
 
-describe('call outcome', () => {
-  it('marks the lead as called by the store manager, converted, or expired for a wrong number', () => {
-    for (const id of ['answered', 'no_answer', 'busy', 'call_later'] as const) {
-      expect(callOutcome(id).leadStatus).toBe('Called by store manager');
-    }
-    expect(callOutcome('converted').leadStatus).toBe('Converted');
-    expect(callOutcome('wrong_number').leadStatus).toBe('Expired');
-    expect(CALL_OUTCOMES.map((o) => o.label)).toEqual(['Answered', 'Converted', 'No answer', 'Busy', 'Asked to call later', 'Wrong number']);
-  });
-
+describe('calls', () => {
   it('adds minutes across the hour and noon', () => {
     expect(addMinutes('5:39 PM', 3)).toBe('5:42 PM');
     expect(addMinutes('11:58 AM', 3)).toBe('12:01 PM');
     expect(addMinutes('12:59 PM', 3)).toBe('1:02 PM');
+  });
+
+  it('shortens today\'s times', () => {
+    expect(shortTime('Today, 5:55 PM')).toBe('5:55 PM');
+    expect(shortTime('Just now')).toBe('Just now');
   });
 
   it('adds a call log, then replaces it when the note is edited', () => {
@@ -40,10 +36,8 @@ describe('call outcome', () => {
     expect(edited).toHaveLength(1);
     expect(edited[0].notes).toBe('Booked for Saturday 10 AM');
   });
-});
 
-describe('outcome chip colours', () => {
-  it('shows no answer and wrong number in red, answered in blue, converted in green', () => {
+  it('colours known outcomes: no answer and wrong number red, answered blue, converted green', () => {
     expect(callOutcome('no_answer').tone).toBe('red');
     expect(callOutcome('wrong_number').tone).toBe('red');
     expect(callOutcome('answered').tone).toBe('blue');
@@ -52,34 +46,40 @@ describe('outcome chip colours', () => {
 });
 
 describe('lead journey', () => {
-  it('is newest first: store manager prompt, AI bot call back with qualified intent, then the missed call', () => {
+  it('is newest first, with times and no source labels', () => {
     const steps = leadJourney(missedLead, []);
     expect(steps.map((s) => s.kind)).toEqual(['pending', 'ai', 'missed']);
     expect(steps[0].title).toBe('Call back by store manager');
+    expect(steps[0].time).toBeUndefined();
     expect(steps[1].title).toBe('Called back by AI bot');
-    expect(steps[1].meta).toBe('AI call · Today, 5:42 PM');
+    expect(steps[1].time).toBe('5:42 PM');
     expect(steps[1].intent).toBeTruthy();
-    expect(steps[1].log).toBeUndefined();
-    expect(steps[2].meta).toBe('Call · Today, 5:39 PM');
+    expect(steps[2].time).toBe('5:39 PM');
+    expect(steps.every((s) => !s.meta || !/AI call|Call ·/.test(s.meta))).toBe(true);
+  });
+
+  it("shows the latest AI call's recording as on its way, and earlier ones as ready", () => {
+    expect(leadJourney(missedLead, [])[1]).toMatchObject({ recordingPending: true });
+    const priya = LEADS.find((l) => l.person === 'Priya Menon')!;
+    const ai = leadJourney(priya, SEED_LEAD_CALLS[priya.id]).filter((s) => s.kind === 'ai');
+    expect(ai[0]).toMatchObject({ time: '6:23 PM', recordingPending: true });
+    expect(ai[1]).toMatchObject({ time: '5:42 PM', recordingSeconds: 32 });
   });
 
   it("replaces the prompt with the store manager's logged calls, newest on top", () => {
-    const later: CallLog = { ...managerCall, id: 'c2', outcome: 'busy', notes: '' };
+    const later: CallLog = { ...managerCall, id: 'c2', notes: 'Asked for a brochure' };
     const steps = leadJourney(missedLead, [managerCall, later]);
     expect(steps.map((s) => s.id)).toEqual(['c2', 'c1', 'ai-0', 'contact-0']);
-    // Who logged the call is not shown.
-    expect(steps[1].meta).toBe('Call · Just now');
+    expect(steps[1].time).toBe('Just now');
   });
 
   it("starts Priya Menon's journey again after her conversion when she calls back at 6:20 PM", () => {
     const priya = LEADS.find((l) => l.person === 'Priya Menon')!;
-    expect(priya.status).toBe('Converted');
     const steps = leadJourney(priya, SEED_LEAD_CALLS[priya.id]);
     expect(steps.map((s) => s.kind)).toEqual(['pending', 'ai', 'missed', 'manager', 'ai', 'missed']);
-    expect(steps[2].meta).toBe('Call · Today, 6:20 PM');
-    expect(steps[1].meta).toBe('AI call · Today, 6:23 PM');
+    expect(steps[2].time).toBe('6:20 PM');
+    expect(steps[3]).toMatchObject({ time: '5:55 PM' });
     expect(steps[3].log?.outcome).toBe('converted');
-    expect(steps[3].meta).toBe('Call · Today, 5:55 PM');
   });
 
   it("puts a new call after the customer's latest contact", () => {
@@ -96,22 +96,26 @@ describe('lead journey', () => {
 });
 
 describe('Customer history', () => {
-  it('shows the outcome next to the call, View note once a note exists, and no note action on the AI bot call', async () => {
+  it('shows times on the right, View note for calls with a note, and no note action on the AI bot call', async () => {
     const onAddNote = jest.fn();
-    const noNote: CallLog = { ...managerCall, id: 'c2', outcome: 'busy', notes: '' };
-    await render(<CustomerHistory steps={leadJourney(missedLead, [managerCall, noNote])} onAddNote={onAddNote} />);
-    expect(screen.getByText('Newest first')).toBeTruthy();
-    expect(screen.getByLabelText('Call outcome: Answered')).toBeTruthy();
-    expect(screen.getByLabelText('Call outcome: Busy')).toBeTruthy();
-    expect(screen.queryByText(/Tarun Sobhani/)).toBeNull();
-    // Notes open from "View note" rather than showing inline.
+    await render(<CustomerHistory steps={leadJourney(missedLead, [managerCall])} onAddNote={onAddNote} />);
+    expect(screen.getByText('Just now')).toBeTruthy();
+    expect(screen.getByText('5:42 PM')).toBeTruthy();
+    expect(screen.getByText('5:39 PM')).toBeTruthy();
+    expect(screen.queryByText(/AI call|Call ·/)).toBeNull();
     expect(screen.queryByText('Wants a test drive on Saturday')).toBeNull();
-    expect(screen.getAllByLabelText('View note: Called back by store manager')).toHaveLength(1);
-    expect(screen.getAllByLabelText('Add note: Called back by store manager')).toHaveLength(1);
+    expect(screen.queryByText(/Tarun Sobhani/)).toBeNull();
     expect(screen.queryByLabelText(/: Called back by AI bot$/)).toBeNull();
 
     await fireEvent.press(screen.getByLabelText('View note: Called back by store manager'));
     expect(onAddNote.mock.calls[0][0].log.id).toBe('c1');
+  });
+
+  it('shows a quiet progress state while the AI call recording is on its way', async () => {
+    await render(<CustomerHistory steps={leadJourney(missedLead, [])} onAddNote={jest.fn()} />);
+    expect(screen.getByText('Getting the call recording')).toBeTruthy();
+    expect(screen.getByText("It'll be ready to play within 5 minutes.")).toBeTruthy();
+    expect(screen.queryByLabelText('Play recording')).toBeNull();
   });
 
   it('prompts the store manager to add a call note until a call is logged', async () => {
@@ -123,26 +127,24 @@ describe('Customer history', () => {
 });
 
 describe('Call note dialog', () => {
-  it('asks for the outcome and notes only, and needs an outcome before saving', async () => {
+  it('asks only for notes, and needs a note before saving', async () => {
     const onSave = jest.fn();
     await render(<CallOutcomeDialog visible number="98551 35120" initial={{}} onDismiss={jest.fn()} onSave={onSave} />);
     expect(screen.getByText('What happened on the call?')).toBeTruthy();
-    expect(screen.queryByText('Call status')).toBeNull();
-    expect(screen.queryByText('Called by AI bot')).toBeNull();
+    expect(screen.queryByText('Call outcome')).toBeNull();
+    expect(screen.queryByText('Answered')).toBeNull();
 
     await fireEvent.press(screen.getByText('Save call note'));
     expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText('Write a note to save it.')).toBeTruthy();
 
-    await fireEvent.press(screen.getByText('Answered'));
-    await fireEvent.changeText(screen.getByLabelText('Call notes, optional'), '  Interested in Tata Ace ');
+    await fireEvent.changeText(screen.getByLabelText('Call notes'), '  Interested in Tata Ace ');
     await fireEvent.press(screen.getByText('Save call note'));
-    expect(onSave).toHaveBeenCalledWith({ outcome: 'answered', notes: 'Interested in Tata Ace' });
+    expect(onSave).toHaveBeenCalledWith({ notes: 'Interested in Tata Ace' });
   });
 
   it('prefills a saved note when viewing it', async () => {
-    await render(
-      <CallOutcomeDialog visible number="98551 35120" initial={{ outcome: 'busy', notes: 'Try after 6' }} onDismiss={jest.fn()} onSave={jest.fn()} />,
-    );
+    await render(<CallOutcomeDialog visible number="98551 35120" initial={{ notes: 'Try after 6' }} onDismiss={jest.fn()} onSave={jest.fn()} />);
     expect(screen.getByDisplayValue('Try after 6')).toBeTruthy();
     expect(screen.getByText('11/500')).toBeTruthy();
   });
@@ -154,63 +156,5 @@ describe('Call note dialog', () => {
     await act(async () => fireEvent.press(screen.getByLabelText('Close')));
     expect(onDismiss).toHaveBeenCalled();
     expect(onSave).not.toHaveBeenCalled();
-  });
-});
-
-describe('Lead summary', () => {
-  const { leadSummary, LEAD_SUMMARY_MAX } = require('@/lib/leadSummary');
-  const priya = LEADS.find((l) => l.person === 'Priya Menon')!;
-
-  it('reads a fresh missed lead in three short sentences', () => {
-    expect(leadSummary(missedLead, leadJourney(missedLead, []), 'Missed')).toBe(
-      "Missed call at 5:39 PM, interested in the Tata 407. The store hasn't called yet. Call them next and add a note.",
-    );
-  });
-
-  it("reads Priya Menon's repeat journey", () => {
-    expect(leadSummary(priya, leadJourney(priya, SEED_LEAD_CALLS[priya.id]), 'Converted')).toBe(
-      'Called twice, last at 6:20 PM, interested in the Tata Ace. Converted at 5:55 PM, then called again. Call them next and add a note.',
-    );
-  });
-
-  it('follows the latest store manager call', () => {
-    const after = (outcome: CallLog['outcome'], reminder = false) =>
-      leadSummary(missedLead, leadJourney(missedLead, [{ ...managerCall, outcome }]), 'Called by store manager', reminder);
-    expect(after('converted')).toMatch(/Converted on your call just now\. Ask them for a review next\.$/);
-    expect(after('no_answer')).toMatch(/Your call just now went unanswered\. Try calling again\.$/);
-    expect(after('call_later', true)).toMatch(/Your reminder is set for tomorrow\.$/);
-  });
-
-  it('stays within three short sentences', () => {
-    const cases = [
-      leadSummary(priya, leadJourney(priya, SEED_LEAD_CALLS[priya.id]), 'Converted'),
-      ...(['answered', 'converted', 'no_answer', 'busy', 'call_later', 'wrong_number'] as const).map((outcome) =>
-        leadSummary(missedLead, leadJourney(missedLead, [{ ...managerCall, outcome }]), 'Called by store manager', true),
-      ),
-    ];
-    for (const text of cases) {
-      expect(text.split(/(?<=\.)\s/).length).toBeLessThanOrEqual(3);
-      expect(text.length).toBeLessThanOrEqual(LEAD_SUMMARY_MAX);
-    }
-  });
-});
-
-describe('Notes in the Lead details header', () => {
-  const { LeadNotesDialog, NotesButton } = require('@/sheets/lead-details/LeadNotesDialog');
-  const notes = { versions: [{ text: 'Wants a finance quote', by: 'Tarun Sobhani', when: 'Yesterday' }], active: true };
-
-  it('shows a notes button that opens the notes', async () => {
-    const onPress = jest.fn();
-    await render(<NotesButton notes={notes} onPress={onPress} />);
-    await fireEvent.press(screen.getByLabelText('Notes, 1 note'));
-    expect(onPress).toHaveBeenCalled();
-  });
-
-  it('shows the current note with version history, edit and delete', async () => {
-    await render(<LeadNotesDialog visible notes={notes} onChange={jest.fn()} author="Tarun Sobhani" onDismiss={jest.fn()} />);
-    expect(screen.getByText('Wants a finance quote')).toBeTruthy();
-    expect(screen.getByLabelText('Version history')).toBeTruthy();
-    expect(screen.getByLabelText('Edit note')).toBeTruthy();
-    expect(screen.getByLabelText('Delete note')).toBeTruthy();
   });
 });

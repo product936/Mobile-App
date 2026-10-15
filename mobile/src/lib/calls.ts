@@ -35,7 +35,8 @@ export type Caller = 'ai_bot' | 'store_manager';
 export type CallLog = {
   id: string;
   by: Caller;
-  outcome: CallOutcome;
+  /** How the call went, when known (set by the backend or sample data; the call note modal no longer asks). */
+  outcome?: CallOutcome;
   notes: string;
   when: string;
   /** Name of the person who logged it (kept for the record, not shown). */
@@ -43,6 +44,11 @@ export type CallLog = {
   /** Which of the customer's contacts this call followed: 0 for the first, 1 for the first repeat, and so on. */
   cycle?: number;
 };
+
+/** "Today, 5:55 PM" → "5:55 PM"; anything else as it is. */
+export function shortTime(when: string): string {
+  return when.replace(/^Today,\s*/, '');
+}
 
 /** The contact a new call follows: the customer's latest one. */
 export function currentCycle(lead: Lead): number {
@@ -77,18 +83,23 @@ export type JourneyStep = {
   id: string;
   kind: 'missed' | 'form' | 'walkin' | 'ai' | 'manager' | 'pending';
   title: string;
-  meta: string;
+  /** Time shown on the right of the title, e.g. "5:39 PM" or "Just now". */
+  time?: string;
+  /** A line under the title (the next-step prompt). */
+  meta?: string;
   /** "Intent qualified" product, on the AI bot's call. */
   intent?: string;
   recordingSeconds?: number;
+  /** The AI bot's call recording is still being fetched. */
+  recordingPending?: boolean;
   /** The logged call this step shows; notes are added or edited against it. */
   log?: CallLog;
 };
 
-const FIRST_STEP: Record<Lead['source'], Pick<JourneyStep, 'kind' | 'title'> & { channel: string }> = {
-  Call: { kind: 'missed', title: 'Missed call from the customer', channel: 'Call' },
-  Form: { kind: 'form', title: 'Filled an enquiry form', channel: 'Lead form' },
-  'Walk-in': { kind: 'walkin', title: 'Visited the store', channel: 'Walk-in' },
+const FIRST_STEP: Record<Lead['source'], Pick<JourneyStep, 'kind' | 'title'>> = {
+  Call: { kind: 'missed', title: 'Missed call from the customer' },
+  Form: { kind: 'form', title: 'Filled an enquiry form' },
+  'Walk-in': { kind: 'walkin', title: 'Visited the store' },
 };
 
 /**
@@ -107,14 +118,15 @@ export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
   contacts.forEach((time, cycle) => {
     const first = cycle === 0 ? FIRST_STEP[lead.firstContact ?? lead.source] : FIRST_STEP.Call;
     steps.push(
-      { id: `contact-${cycle}`, kind: first.kind, title: first.title, meta: `${first.channel} · Today, ${time}` },
+      { id: `contact-${cycle}`, kind: first.kind, title: first.title, time },
       {
         id: `ai-${cycle}`,
         kind: 'ai',
         title: 'Called back by AI bot',
-        meta: `AI call · Today, ${addMinutes(time, 3)}`,
+        time: addMinutes(time, 3),
         intent: qualifiedIntent(lead),
-        recordingSeconds: 32,
+        // The latest AI call's recording is still on its way; earlier ones are ready to play.
+        ...(cycle === latest ? { recordingPending: true } : { recordingSeconds: 32 }),
       },
     );
     const cycleLogs = logs.filter((l) => Math.min(l.cycle ?? 0, latest) === cycle);
@@ -124,7 +136,7 @@ export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
         id: log.id,
         kind: manager ? 'manager' : 'ai',
         title: manager ? 'Called back by store manager' : 'Called back by AI bot',
-        meta: `Call · ${log.when}`,
+        time: shortTime(log.when),
         log,
       });
     }
