@@ -1,54 +1,116 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { FileText, MessageSquare, Pause, Phone, Play, ShoppingBag, type LucideIcon } from 'lucide-react-native';
+import {
+  BadgeCheck,
+  Bot,
+  FileText,
+  Pause,
+  PhoneCall,
+  PhoneMissed,
+  PhoneOutgoing,
+  Play,
+  Store,
+  type LucideIcon,
+} from 'lucide-react-native';
 
 import { PressableScale } from '@/components/PressableScale';
 import { layout } from '@/components/primitives';
 import { Text } from '@/components/Text';
-import { CUSTOMER_HISTORY, type CustomerEvent } from '@/data/content';
+import { callOutcome, type JourneyStep } from '@/lib/calls';
 import { usePlayback } from '@/lib/usePlayback';
 import { colors, radius, type } from '@/theme/tokens';
 
-const KIND: Record<CustomerEvent['kind'], { Icon: LucideIcon; bg: string; fg: string; size: number }> = {
-  purchase: { Icon: ShoppingBag, bg: colors.amber100, fg: colors.amber700, size: 16 },
-  call: { Icon: Phone, bg: colors.blue50, fg: colors.primaryAccent, size: 15 },
-  chat: { Icon: MessageSquare, bg: colors.successBg, fg: colors.success, size: 15 },
-  form: { Icon: FileText, bg: '#EEF0FF', fg: colors.primaryDeep, size: 15 },
+const KIND: Record<JourneyStep['kind'], { Icon: LucideIcon; bg: string; fg: string }> = {
+  missed: { Icon: PhoneMissed, bg: colors.red100, fg: colors.error },
+  form: { Icon: FileText, bg: colors.indigo50, fg: colors.primaryDeep },
+  walkin: { Icon: Store, bg: colors.amber100, fg: colors.amber700 },
+  ai: { Icon: Bot, bg: colors.violet100, fg: colors.violet600 },
+  manager: { Icon: PhoneCall, bg: colors.blue50, fg: colors.primaryAccent },
+  pending: { Icon: PhoneOutgoing, bg: colors.surfaceElevated, fg: colors.textTertiary },
 };
 
-/** Timeline of the customer's past interactions with the store, newest first. */
-export function CustomerHistory({ events = CUSTOMER_HISTORY }: { events?: CustomerEvent[] }) {
+/**
+ * The lead's journey, oldest first: first contact, the AI bot's call back
+ * with the purchase intent it qualified, then the store manager's call backs.
+ * Each call carries its outcome and a note; "Add note" asks what happened.
+ */
+export function CustomerHistory({ steps, onAddNote }: { steps: JourneyStep[]; onAddNote: (step: JourneyStep) => void }) {
   return (
     <View style={{ marginTop: 26 }}>
-      <Text size={type.subhead} weight={600} color={colors.textSecondary} style={{ marginBottom: 14 }} accessibilityRole="header">
-        Customer history
-      </Text>
-      {events.map((e, i) => {
-        const k = KIND[e.kind];
-        const last = i === events.length - 1;
+      <View style={styles.titleRow}>
+        <Text size={type.subhead} weight={600} color={colors.textSecondary} accessibilityRole="header">
+          Customer history
+        </Text>
+        <Text size={type.footnote} color={colors.textTertiary}>
+          Oldest first
+        </Text>
+      </View>
+      {steps.map((step, i) => {
+        const k = KIND[step.kind];
+        const last = i === steps.length - 1;
+        const pending = step.kind === 'pending';
+        const callStep = step.kind === 'ai' || step.kind === 'manager';
+        const note = step.log?.notes;
         return (
-          <View key={e.id} style={[layout.row, { alignItems: 'stretch', gap: 12 }]}>
+          <View key={step.id} style={[layout.row, { alignItems: 'stretch', gap: 12 }]}>
             <View style={styles.rail}>
-              <View style={[styles.icon, { backgroundColor: k.bg }]}>
-                <k.Icon size={k.size} color={k.fg} strokeWidth={2} />
+              <View style={[styles.icon, { backgroundColor: k.bg }, pending && styles.iconPending]}>
+                <k.Icon size={15} color={k.fg} strokeWidth={2} />
               </View>
               {!last ? <View style={styles.line} /> : null}
             </View>
             <View style={[layout.flex1, !last && { paddingBottom: 20 }]}>
-              <Text size={type.callout} color={colors.textPrimary}>
-                {e.parts.map((p, j) => (
-                  <Text key={j} size={type.callout} weight={p.bold ? 700 : 400} color={colors.textPrimary}>
-                    {p.text}
-                  </Text>
-                ))}
+              <Text size={type.callout} weight={600} color={pending ? colors.textSecondary : colors.textPrimary}>
+                {step.title}
               </Text>
               <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 2 }}>
-                {e.meta}
+                {step.meta}
               </Text>
-              {e.recordingSeconds ? <Recording duration={e.recordingSeconds} /> : null}
-              {e.action ? (
-                <PressableScale pressedScale={0.96} accessibilityLabel={e.action} style={styles.action}>
+
+              {step.intent || step.log ? (
+                <View style={styles.tags}>
+                  {step.intent ? (
+                    <View style={[styles.tag, styles.tagIntent]}>
+                      <BadgeCheck size={13} color={colors.success} strokeWidth={2.2} />
+                      <Text size={type.footnote} weight={600} color={colors.textSecondary} lineHeight={1.2}>
+                        Intent qualified:{' '}
+                        <Text size={type.footnote} weight={700} color={colors.textPrimary} lineHeight={1.2}>
+                          {step.intent}
+                        </Text>
+                      </Text>
+                    </View>
+                  ) : null}
+                  {step.log ? (
+                    <View style={styles.tag}>
+                      <Text size={type.footnote} weight={600} color={colors.textSecondary} lineHeight={1.2}>
+                        {callOutcome(step.log.outcome).label}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {step.recordingSeconds ? <Recording duration={step.recordingSeconds} /> : null}
+
+              {note ? (
+                <View style={styles.note}>
+                  <Text size={type.caption} weight={700} color={colors.textTertiary} style={styles.noteLabel}>
+                    Call note
+                  </Text>
+                  <Text size={type.callout} color={colors.textPrimary}>
+                    {note}
+                  </Text>
+                </View>
+              ) : null}
+
+              {callStep || pending ? (
+                <PressableScale
+                  pressedScale={0.96}
+                  accessibilityLabel={`${note ? 'Edit note' : pending ? 'Add call note' : 'Add note'}: ${step.title}`}
+                  onPress={() => onAddNote(step)}
+                  style={styles.action}
+                >
                   <Text size={type.footnote} weight={700} color={colors.primaryAccent} lineHeight={1.2}>
-                    {e.action}
+                    {note ? 'Edit note' : pending ? 'Add call note' : 'Add note'}
                   </Text>
                 </PressableScale>
               ) : null}
@@ -87,8 +149,32 @@ function Recording({ duration }: { duration: number }) {
 }
 
 const styles = StyleSheet.create({
+  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 },
   rail: { width: 32, alignItems: 'center' },
   icon: { width: 32, height: 32, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  iconPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.borderDefault },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 26,
+    paddingHorizontal: 10,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceBase,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+  },
+  tagIntent: { backgroundColor: colors.successBg, borderColor: colors.successBorder },
+  note: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: radius.input,
+    backgroundColor: colors.surfaceBase,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+  },
+  noteLabel: { marginBottom: 4 },
   line: { flex: 1, width: 2, backgroundColor: colors.borderDefault, marginVertical: 4 },
   action: {
     alignSelf: 'flex-start',

@@ -6,6 +6,7 @@ Clickable preview (always the latest version): https://claude.ai/artifact/MyroQ1
 
 ## Unreleased
 
+- **Customer journey and call notes** ([#9](https://github.com/product936/Mobile-App/pull/9)): Customer history in Lead details now shows the lead's journey, oldest first: missed call, call back by the AI bot with its qualified purchase intent, then call backs by the store manager. Each call carries a note: "Add note" (and "Call back") opens "What happened on the call?" with a call status dropdown (Called by AI bot, Called by store manager), the call outcome and free-text notes. Call notes now live with their call in Customer history instead of the Notes section.
 - **Call back outcome** ([#8](https://github.com/product936/Mobile-App/pull/8)): tapping "Call back" in Lead details now opens "How did the call go?", asking for the call status (Connected, No answer, Busy, Asked to call later or Wrong number) and optional call notes. Saving adds the call to the lead's notes, shows a "Call logged" confirmation, and moves the lead's status where the outcome makes it clear (for example, Connected sets it to Contacted).
 - **Quick feedback cleanup** ([#7](https://github.com/product936/Mobile-App/pull/7)): removed the "Skip" button next to Send feedback ("Skip for now" remains) and the repeated "How was that?" heading. The preview now re-measures the window when its frame changes size, so the phone no longer renders tiny if the page loads before the viewer has sized it.
 

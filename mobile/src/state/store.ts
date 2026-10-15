@@ -4,6 +4,7 @@ import { ROLE_CONFIGS, type Role, type RoleConfig } from '@/config/roles';
 import { SEED_NOTE_VERSIONS, type DateRange } from '@/data/content';
 import { LEADS, type Lead, type LeadSourceFilter, type LeadStatusFilter } from '@/data/leads';
 import { EMPTY_SELECTION, toggleSelection, type LocationSelection } from '@/lib/format';
+import { upsertCallLog, type CallLog } from '@/lib/calls';
 import type { LeadNotes } from '@/lib/notes';
 import type { FeedbackContext } from '@/services/feedback';
 import type { FilterLevel } from '@/data/locations';
@@ -83,6 +84,9 @@ type AppState = {
   /** Versioned notes per lead; leads without saved notes show the seeded sample history. */
   leadNotes: Record<string, LeadNotes>;
   setLeadNotes: (id: string, notes: LeadNotes) => void;
+  /** Call backs logged against each lead, with what happened on them. */
+  leadCalls: Record<string, CallLog[]>;
+  saveLeadCall: (id: string, log: CallLog) => void;
   deletedReplies: string[];
   deleteReply: (id: string) => void;
   readNotifications: string[];
@@ -121,6 +125,7 @@ export const useAppStore = create<AppState>((set) => ({
       ...initialOverlays,
       leadEdits: {},
       leadNotes: {},
+      leadCalls: {},
       deletedReplies: [],
       readNotifications: [],
     }),
@@ -155,6 +160,8 @@ export const useAppStore = create<AppState>((set) => ({
   saveLeadEdits: (id, edits) => set((s) => ({ leadEdits: { ...s.leadEdits, [id]: { ...s.leadEdits[id], ...edits } } })),
   leadNotes: {},
   setLeadNotes: (id, notes) => set((s) => ({ leadNotes: { ...s.leadNotes, [id]: notes } })),
+  leadCalls: {},
+  saveLeadCall: (id, log) => set((s) => ({ leadCalls: { ...s.leadCalls, [id]: upsertCallLog(s.leadCalls[id] ?? [], log) } })),
   deletedReplies: [],
   deleteReply: (id) => set((s) => ({ deletedReplies: [...s.deletedReplies, id] })),
   readNotifications: [],
@@ -184,4 +191,11 @@ const SEEDED_NOTES: LeadNotes = { versions: SEED_NOTE_VERSIONS, active: true };
 /** A lead's notes, falling back to the seeded sample history. */
 export function useLeadNotes(id: string | null): LeadNotes {
   return useAppStore((s) => (id ? (s.leadNotes[id] ?? SEEDED_NOTES) : SEEDED_NOTES));
+}
+
+const NO_CALLS: CallLog[] = [];
+
+/** Call backs logged against a lead, oldest first. */
+export function useLeadCalls(id: string | null): CallLog[] {
+  return useAppStore((s) => (id ? (s.leadCalls[id] ?? NO_CALLS) : NO_CALLS));
 }

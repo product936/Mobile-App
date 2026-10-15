@@ -8,14 +8,13 @@ import { Sheet, SheetFooter, SheetGrabber, SheetHeader } from '@/components/Shee
 import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
 import type { LeadStatus } from '@/data/leads';
-import { callNoteText, callOutcome, type CallOutcome } from '@/lib/calls';
+import { callOutcome, leadJourney, type CallLog, type Caller, type CallOutcome, type JourneyStep } from '@/lib/calls';
 import { dialableNumber, leadPresentation } from '@/lib/leads';
-import { saveNoteVersion } from '@/lib/notes';
-import { CallOutcomeDialog } from '@/sheets/lead-details/CallOutcomeDialog';
+import { CallOutcomeDialog, type CallNote } from '@/sheets/lead-details/CallOutcomeDialog';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
 import { LeadNotesSection } from '@/sheets/lead-details/LeadNotesSection';
 import { StatusPill, StatusSelect } from '@/sheets/lead-details/StatusField';
-import { useAppStore, useLeadNotes, useLeads, useRoleConfig } from '@/state/store';
+import { useAppStore, useLeadCalls, useLeadNotes, useLeads, useRoleConfig } from '@/state/store';
 import { fontFamily } from '@/theme/fonts';
 import { colors, radius, type } from '@/theme/tokens';
 
@@ -24,8 +23,9 @@ import { colors, radius, type } from '@/theme/tokens';
  * source and location, status, quick actions, a next-day reminder, versioned
  * notes and the customer's history. Name, status and reminder are a draft
  * saved with "Save & Done"; notes save on their own. "Call back" dials the
- * customer and asks how the call went: the outcome and notes are saved to the
- * lead's notes, and outcomes like "Connected" update the status draft.
+ * customer and asks what happened on the call; the call note is saved to
+ * Customer history straight away, and outcomes like "Connected" update the
+ * status draft. Calls in Customer history take notes the same way.
  */
 export function LeadDetailSheet() {
   const leadId = useAppStore((s) => s.leadDetailId);
@@ -33,6 +33,7 @@ export function LeadDetailSheet() {
   const save = useAppStore((s) => s.saveLeadEdits);
   const openAddLead = useAppStore((s) => s.openAddLead);
   const setLeadNotes = useAppStore((s) => s.setLeadNotes);
+  const saveLeadCall = useAppStore((s) => s.saveLeadCall);
   const openFeedback = useAppStore((s) => s.openFeedback);
   const { user } = useRoleConfig();
   const current = useLeads().find((l) => l.id === leadId);
@@ -41,6 +42,7 @@ export function LeadDetailSheet() {
   if (current) lastLead.current = current;
   const lead = current ?? lastLead.current;
   const notes = useLeadNotes(lead?.id ?? null);
+  const calls = useLeadCalls(lead?.id ?? null);
 
   const [name, setName] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -48,6 +50,10 @@ export function LeadDetailSheet() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [reminder, setReminder] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
+  // What the call note dialog opens with, and the call it edits (if any).
+  const [callTarget, setCallTarget] = useState<{ initial: { by: Caller; outcome?: CallOutcome; notes?: string }; log?: CallLog }>({
+    initial: { by: 'store_manager' },
+  });
   const [callLogged, setCallLogged] = useState<{ label: string; status?: LeadStatus } | null>(null);
 
   useEffect(() => {
@@ -68,12 +74,31 @@ export function LeadDetailSheet() {
     // The phone app takes over on a device; the call log is waiting on return.
     // The web preview has no dialer, so it goes straight to the call log.
     if (Platform.OS !== 'web') Linking.openURL(`tel:${dialableNumber(lead.number).replace(/\s/g, '')}`).catch(() => {});
+    setCallTarget({ initial: { by: 'store_manager' } });
     setCallOpen(true);
   };
 
-  const logCall = (outcome: CallOutcome, callNotes: string) => {
+  const addNote = (step: JourneyStep) => {
+    const log = step.log;
+    setCallTarget(
+      log
+        ? { initial: { by: log.by, outcome: log.outcome, notes: log.notes }, log }
+        : { initial: { by: step.kind === 'ai' ? 'ai_bot' : 'store_manager' } },
+    );
+    setCallOpen(true);
+  };
+
+  const logCall = ({ by, outcome, notes: callNotes }: CallNote) => {
     if (!lead) return;
-    setLeadNotes(lead.id, saveNoteVersion(notes, callNoteText(outcome, callNotes), user.name));
+    const existing = callTarget.log;
+    saveLeadCall(lead.id, {
+      id: existing?.id ?? `call-${Date.now()}`,
+      by,
+      outcome,
+      notes: callNotes,
+      when: existing?.when ?? 'Just now',
+      author: existing?.author ?? user.name,
+    });
     const next = callOutcome(outcome).leadStatus;
     const changes = next && next !== status ? next : undefined;
     if (changes) setStatus(changes);
@@ -171,12 +196,12 @@ export function LeadDetailSheet() {
                 </View>
                 <View style={layout.flex1}>
                   <Text size={type.callout} weight={700} color={colors.textPrimary}>
-                    Call logged: {callLogged.label}
+                    Call note saved: {callLogged.label}
                   </Text>
                   <Text size={type.footnote} color={colors.textSecondary} style={{ marginTop: 1 }}>
                     {callLogged.status
-                      ? `Added to notes. Status set to ${callLogged.status}. Tap Save & Done to keep it.`
-                      : 'Added to notes below.'}
+                      ? `Added to customer history. Status set to ${callLogged.status}. Tap Save & Done to keep it.`
+                      : 'Added to customer history below.'}
                   </Text>
                 </View>
               </View>
@@ -220,7 +245,7 @@ export function LeadDetailSheet() {
               onChange={(next) => setLeadNotes(lead.id, next)}
               author={user.name}
             />
-            <CustomerHistory />
+            <CustomerHistory steps={leadJourney(lead, calls)} onAddNote={addNote} />
           </ScrollView>
           <SheetFooter>
             <Button
@@ -234,7 +259,13 @@ export function LeadDetailSheet() {
               }}
             />
           </SheetFooter>
-          <CallOutcomeDialog visible={callOpen} number={p.number} onDismiss={() => setCallOpen(false)} onSave={logCall} />
+          <CallOutcomeDialog
+            visible={callOpen}
+            number={p.number}
+            initial={callTarget.initial}
+            onDismiss={() => setCallOpen(false)}
+            onSave={logCall}
+          />
         </>
       ) : null}
     </Sheet>
