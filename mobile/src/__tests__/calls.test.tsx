@@ -1,28 +1,31 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
+import { SEED_LEAD_CALLS } from '@/data/content';
 import { LEADS } from '@/data/leads';
-import { addMinutes, callOutcome, leadJourney, upsertCallLog, type CallLog } from '@/lib/calls';
+import { addMinutes, CALL_OUTCOMES, callOutcome, leadJourney, upsertCallLog, type CallLog } from '@/lib/calls';
 import { CallOutcomeDialog } from '@/sheets/lead-details/CallOutcomeDialog';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
 
 const missedLead = LEADS.find((l) => l.id === 'l2')!; // Call, 5:39 PM
-const formLead = LEADS.find((l) => l.source === 'Form')!;
+const formLead = LEADS.find((l) => l.source === 'Form' && !l.firstContact)!;
 
 const managerCall: CallLog = {
   id: 'c1',
   by: 'store_manager',
-  outcome: 'connected',
+  outcome: 'answered',
   notes: 'Wants a test drive on Saturday',
   when: 'Just now',
   author: 'Tarun Sobhani',
 };
 
 describe('call outcome', () => {
-  it('marks the lead as called by the store manager, or expired for a wrong number', () => {
-    for (const id of ['connected', 'no_answer', 'busy', 'call_later'] as const) {
+  it('marks the lead as called by the store manager, converted, or expired for a wrong number', () => {
+    for (const id of ['answered', 'no_answer', 'busy', 'call_later'] as const) {
       expect(callOutcome(id).leadStatus).toBe('Called by store manager');
     }
+    expect(callOutcome('converted').leadStatus).toBe('Converted');
     expect(callOutcome('wrong_number').leadStatus).toBe('Expired');
+    expect(CALL_OUTCOMES.map((o) => o.label)).toEqual(['Answered', 'Converted', 'No answer', 'Busy', 'Asked to call later', 'Wrong number']);
   });
 
   it('adds minutes across the hour and noon', () => {
@@ -58,6 +61,15 @@ describe('lead journey', () => {
     expect(steps[1].meta).toBe('Call · Just now · Tarun Sobhani');
   });
 
+  it("shows Priya Menon's converted journey: missed call, AI bot, then the store manager's converting call", () => {
+    const priya = LEADS.find((l) => l.person === 'Priya Menon')!;
+    expect(priya.status).toBe('Converted');
+    const steps = leadJourney(priya, SEED_LEAD_CALLS[priya.id]);
+    expect(steps.map((s) => s.kind)).toEqual(['manager', 'ai', 'missed']);
+    expect(steps[0].log?.outcome).toBe('converted');
+    expect(steps[0].log?.notes).toBeTruthy();
+  });
+
   it('starts from how the customer first reached the store', () => {
     const steps = leadJourney(formLead, []);
     expect(steps[steps.length - 1].title).toBe('Filled an enquiry form');
@@ -70,7 +82,7 @@ describe('Customer history', () => {
     const noNote: CallLog = { ...managerCall, id: 'c2', outcome: 'busy', notes: '' };
     await render(<CustomerHistory steps={leadJourney(missedLead, [managerCall, noNote])} onAddNote={onAddNote} />);
     expect(screen.getByText('Newest first')).toBeTruthy();
-    expect(screen.getByLabelText('Call outcome: Connected')).toBeTruthy();
+    expect(screen.getByLabelText('Call outcome: Answered')).toBeTruthy();
     expect(screen.getByLabelText('Call outcome: Busy')).toBeTruthy();
     // Notes open from "View note" rather than showing inline.
     expect(screen.queryByText('Wants a test drive on Saturday')).toBeNull();
@@ -101,10 +113,10 @@ describe('Call note dialog', () => {
     await fireEvent.press(screen.getByText('Save call note'));
     expect(onSave).not.toHaveBeenCalled();
 
-    await fireEvent.press(screen.getByText('Connected'));
+    await fireEvent.press(screen.getByText('Answered'));
     await fireEvent.changeText(screen.getByLabelText('Call notes, optional'), '  Interested in Tata Ace ');
     await fireEvent.press(screen.getByText('Save call note'));
-    expect(onSave).toHaveBeenCalledWith({ outcome: 'connected', notes: 'Interested in Tata Ace' });
+    expect(onSave).toHaveBeenCalledWith({ outcome: 'answered', notes: 'Interested in Tata Ace' });
   });
 
   it('prefills a saved note when viewing it', async () => {

@@ -1,3 +1,4 @@
+import type { CallLog } from '@/lib/calls';
 /** Sample content for the reviews, notifications and profile sub-pages. */
 
 export type Review = {
@@ -144,3 +145,20 @@ export const SEED_NOTE_VERSIONS = [
     when: 'Yesterday, 6:10 PM',
   },
 ];
+
+/**
+ * Call backs already logged for sample leads. Priya Menon's journey runs
+ * missed call, AI bot call back, then a store manager call that converted.
+ */
+export const SEED_LEAD_CALLS: Record<string, CallLog[]> = {
+  l3: [
+    {
+      id: 'seed-l3-1',
+      by: 'store_manager',
+      outcome: 'converted',
+      notes: 'Booked a Tata Ace and paid the booking amount. Delivery on Monday with finance through Tata Capital.',
+      when: 'Today, 5:55 PM',
+      author: 'Tarun Sobhani',
+    },
+  ],
+};

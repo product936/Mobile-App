@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { ROLE_CONFIGS, type Role, type RoleConfig } from '@/config/roles';
-import { SEED_NOTE_VERSIONS, type DateRange } from '@/data/content';
+import { SEED_LEAD_CALLS, SEED_NOTE_VERSIONS, type DateRange } from '@/data/content';
 import { LEADS, type Lead, type LeadSourceFilter, type LeadStatusFilter } from '@/data/leads';
 import { EMPTY_SELECTION, toggleSelection, type LocationSelection } from '@/lib/format';
 import { upsertCallLog, type CallLog } from '@/lib/calls';
@@ -125,7 +125,7 @@ export const useAppStore = create<AppState>((set) => ({
       ...initialOverlays,
       leadEdits: {},
       leadNotes: {},
-      leadCalls: {},
+      leadCalls: SEED_LEAD_CALLS,
       deletedReplies: [],
       readNotifications: [],
     }),
@@ -160,7 +160,7 @@ export const useAppStore = create<AppState>((set) => ({
   saveLeadEdits: (id, edits) => set((s) => ({ leadEdits: { ...s.leadEdits, [id]: { ...s.leadEdits[id], ...edits } } })),
   leadNotes: {},
   setLeadNotes: (id, notes) => set((s) => ({ leadNotes: { ...s.leadNotes, [id]: notes } })),
-  leadCalls: {},
+  leadCalls: SEED_LEAD_CALLS,
   saveLeadCall: (id, log) => set((s) => ({ leadCalls: { ...s.leadCalls, [id]: upsertCallLog(s.leadCalls[id] ?? [], log) } })),
   deletedReplies: [],
   deleteReply: (id) => set((s) => ({ deletedReplies: [...s.deletedReplies, id] })),

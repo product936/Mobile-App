@@ -24,7 +24,7 @@ import { colors, radius, type } from '@/theme/tokens';
  * notes and the customer's history. Name, status and reminder are a draft
  * saved with "Save & Done"; notes save on their own. "Call back" dials the
  * customer and asks what happened on the call; the call note is saved to
- * Customer history straight away, and outcomes like "Connected" update the
+ * Customer history straight away, and outcomes like "Converted" update the
  * status draft. Calls in Customer history take notes the same way.
  */
 export function LeadDetailSheet() {

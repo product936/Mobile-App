@@ -1,14 +1,15 @@
 import { PURCHASE_OPTIONS, type Lead, type LeadStatus } from '@/data/leads';
 
-export type CallOutcome = 'connected' | 'no_answer' | 'busy' | 'call_later' | 'wrong_number';
+export type CallOutcome = 'answered' | 'converted' | 'no_answer' | 'busy' | 'call_later' | 'wrong_number';
 
 /**
  * How the store manager's call went. `leadStatus` is the status the lead moves
- * to when the call is logged: "Called by store manager", or Expired for a
- * wrong number.
+ * to when the call is logged: Converted when the customer bought, Expired
+ * for a wrong number, and "Called by store manager" otherwise.
  */
 export const CALL_OUTCOMES: { id: CallOutcome; label: string; leadStatus: LeadStatus }[] = [
-  { id: 'connected', label: 'Connected', leadStatus: 'Called by store manager' },
+  { id: 'answered', label: 'Answered', leadStatus: 'Called by store manager' },
+  { id: 'converted', label: 'Converted', leadStatus: 'Converted' },
   { id: 'no_answer', label: 'No answer', leadStatus: 'Called by store manager' },
   { id: 'busy', label: 'Busy', leadStatus: 'Called by store manager' },
   { id: 'call_later', label: 'Asked to call later', leadStatus: 'Called by store manager' },
@@ -87,7 +88,7 @@ const FIRST_STEP: Record<Lead['source'], Pick<JourneyStep, 'kind' | 'title'> & {
  * customer first reached the store.
  */
 export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
-  const first = FIRST_STEP[lead.source];
+  const first = FIRST_STEP[lead.firstContact ?? lead.source];
   // Built oldest first, then reversed.
   const steps: JourneyStep[] = [
     { id: 'first', kind: first.kind, title: first.title, meta: `${first.channel} · Today, ${lead.time}` },
