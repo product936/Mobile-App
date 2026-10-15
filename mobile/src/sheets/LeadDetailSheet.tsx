@@ -14,7 +14,7 @@ import { leadSummary } from '@/lib/leadSummary';
 import { CallOutcomeDialog, type CallNote } from '@/sheets/lead-details/CallOutcomeDialog';
 import { LeadSummaryCard } from '@/sheets/lead-details/LeadSummaryCard';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
-import { LeadNotesSection } from '@/sheets/lead-details/LeadNotesSection';
+import { LeadNotesDialog, NotesButton } from '@/sheets/lead-details/LeadNotesDialog';
 import { StatusPill, StatusSelect } from '@/sheets/lead-details/StatusField';
 import { useAppStore, useLeadCalls, useLeadNotes, useLeads, useRoleConfig } from '@/state/store';
 import { fontFamily } from '@/theme/fonts';
@@ -52,6 +52,7 @@ export function LeadDetailSheet() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [reminder, setReminder] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   // What the call note dialog opens with, and the call it edits (if any).
   const [callTarget, setCallTarget] = useState<{ initial: { outcome?: CallOutcome; notes?: string }; log?: CallLog }>({
     initial: {},
@@ -69,6 +70,7 @@ export function LeadDetailSheet() {
     setStatusOpen(false);
     setReminder(!!lead.reminder);
     setCallOpen(false);
+    setNotesOpen(false);
     setCallLogged(null);
   }, [leadId]); // Reset the draft only when a lead is opened.
 
@@ -148,6 +150,7 @@ export function LeadDetailSheet() {
         paddingX={22}
         topPadding={2}
         accessory={lead ? <StatusPill status={status} /> : null}
+        actions={lead ? <NotesButton notes={notes} onPress={() => setNotesOpen(true)} /> : null}
       />
       {lead && p ? (
         <>
@@ -275,15 +278,16 @@ export function LeadDetailSheet() {
 
             <LeadSummaryCard summary={leadSummary(lead, steps, status, reminder)} />
 
-            <LeadNotesSection
-              key={lead.id}
-              notes={notes}
-              onChange={(next) => setLeadNotes(lead.id, next)}
-              author={user.name}
-            />
             <CustomerHistory steps={steps} onAddNote={addNote} />
           </ScrollView>
           <SheetBottomInset />
+          <LeadNotesDialog
+            visible={notesOpen}
+            notes={notes}
+            onChange={(next) => setLeadNotes(lead.id, next)}
+            author={user.name}
+            onDismiss={() => setNotesOpen(false)}
+          />
           <CallOutcomeDialog
             visible={callOpen}
             number={p.number}

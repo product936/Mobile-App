@@ -194,3 +194,23 @@ describe('Lead summary', () => {
     }
   });
 });
+
+describe('Notes in the Lead details header', () => {
+  const { LeadNotesDialog, NotesButton } = require('@/sheets/lead-details/LeadNotesDialog');
+  const notes = { versions: [{ text: 'Wants a finance quote', by: 'Tarun Sobhani', when: 'Yesterday' }], active: true };
+
+  it('shows a notes button that opens the notes', async () => {
+    const onPress = jest.fn();
+    await render(<NotesButton notes={notes} onPress={onPress} />);
+    await fireEvent.press(screen.getByLabelText('Notes, 1 note'));
+    expect(onPress).toHaveBeenCalled();
+  });
+
+  it('shows the current note with version history, edit and delete', async () => {
+    await render(<LeadNotesDialog visible notes={notes} onChange={jest.fn()} author="Tarun Sobhani" onDismiss={jest.fn()} />);
+    expect(screen.getByText('Wants a finance quote')).toBeTruthy();
+    expect(screen.getByLabelText('Version history')).toBeTruthy();
+    expect(screen.getByLabelText('Edit note')).toBeTruthy();
+    expect(screen.getByLabelText('Delete note')).toBeTruthy();
+  });
+});
