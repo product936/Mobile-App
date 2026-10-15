@@ -10,7 +10,9 @@ import { STORE } from '@/config/roles';
 import type { LeadStatus } from '@/data/leads';
 import { callOutcome, currentCycle, leadJourney, type CallLog, type CallOutcome, type JourneyStep } from '@/lib/calls';
 import { dialableNumber, leadPresentation } from '@/lib/leads';
+import { leadSummary } from '@/lib/leadSummary';
 import { CallOutcomeDialog, type CallNote } from '@/sheets/lead-details/CallOutcomeDialog';
+import { LeadSummaryCard } from '@/sheets/lead-details/LeadSummaryCard';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
 import { LeadNotesSection } from '@/sheets/lead-details/LeadNotesSection';
 import { StatusPill, StatusSelect } from '@/sheets/lead-details/StatusField';
@@ -71,6 +73,7 @@ export function LeadDetailSheet() {
   }, [leadId]); // Reset the draft only when a lead is opened.
 
   const p = lead ? leadPresentation(lead) : null;
+  const steps = lead ? leadJourney(lead, calls) : [];
 
   const changeStatus = (next: LeadStatus) => {
     setStatus(next);
@@ -270,13 +273,15 @@ export function LeadDetailSheet() {
               />
             )}
 
+            <LeadSummaryCard summary={leadSummary(steps, status, reminder)} />
+
             <LeadNotesSection
               key={lead.id}
               notes={notes}
               onChange={(next) => setLeadNotes(lead.id, next)}
               author={user.name}
             />
-            <CustomerHistory steps={leadJourney(lead, calls)} onAddNote={addNote} />
+            <CustomerHistory steps={steps} onAddNote={addNote} />
           </ScrollView>
           <SheetBottomInset />
           <CallOutcomeDialog

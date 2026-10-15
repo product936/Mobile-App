@@ -156,3 +156,37 @@ describe('Call note dialog', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 });
+
+describe('Lead summary', () => {
+  const { leadSummary } = require('@/lib/leadSummary');
+
+  it('reads a fresh missed lead: one missed call, one AI bot call, waiting for a call back', () => {
+    const s = leadSummary(leadJourney(missedLead, []), 'Missed');
+    expect(s.stage).toBe('Missed');
+    expect(s.total).toBe(2);
+    expect(s.interactions).toBe('1 missed call · 1 AI bot call');
+    expect(s.intent).toBeTruthy();
+    expect(s.latest.title).toBe('Called back by AI bot');
+    expect(s.latest.when).toBe('Today, 5:42 PM');
+    expect(s.nextStep).toBe('Call the customer back, then add a note about the call.');
+  });
+
+  it("reads Priya Menon's repeat journey", () => {
+    const priya = LEADS.find((l) => l.person === 'Priya Menon')!;
+    const s = leadSummary(leadJourney(priya, SEED_LEAD_CALLS[priya.id]), 'Converted');
+    expect(s.total).toBe(5);
+    expect(s.interactions).toBe('2 missed calls · 2 AI bot calls · 1 store manager call');
+    expect(s.intent).toBe('Tata Ace');
+  });
+
+  it('suggests the next step from the latest store manager call', () => {
+    const after = (outcome: CallLog['outcome'], reminder = false) =>
+      leadSummary(leadJourney(missedLead, [{ ...managerCall, outcome }]), 'Called by store manager', reminder).nextStep;
+    expect(after('converted')).toBe('Request a review from the customer.');
+    expect(after('no_answer')).toBe('Try calling again.');
+    expect(after('call_later', true)).toBe('Call back tomorrow. Your reminder is set.');
+    expect(leadSummary(leadJourney(missedLead, [managerCall]), 'Called by store manager').latest.title).toBe(
+      'Called back by store manager · Answered',
+    );
+  });
+});
