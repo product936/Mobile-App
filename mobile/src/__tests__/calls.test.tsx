@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { SEED_LEAD_CALLS } from '@/data/content';
 import { LEADS } from '@/data/leads';
-import { addMinutes, CALL_OUTCOMES, callOutcome, leadJourney, upsertCallLog, type CallLog } from '@/lib/calls';
+import { addMinutes, CALL_OUTCOMES, callOutcome, currentCycle, leadJourney, upsertCallLog, type CallLog } from '@/lib/calls';
 import { CallOutcomeDialog } from '@/sheets/lead-details/CallOutcomeDialog';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
 
@@ -42,6 +42,15 @@ describe('call outcome', () => {
   });
 });
 
+describe('outcome chip colours', () => {
+  it('shows no answer and wrong number in red, answered in blue, converted in green', () => {
+    expect(callOutcome('no_answer').tone).toBe('red');
+    expect(callOutcome('wrong_number').tone).toBe('red');
+    expect(callOutcome('answered').tone).toBe('blue');
+    expect(callOutcome('converted').tone).toBe('green');
+  });
+});
+
 describe('lead journey', () => {
   it('is newest first: store manager prompt, AI bot call back with qualified intent, then the missed call', () => {
     const steps = leadJourney(missedLead, []);
@@ -57,17 +66,27 @@ describe('lead journey', () => {
   it("replaces the prompt with the store manager's logged calls, newest on top", () => {
     const later: CallLog = { ...managerCall, id: 'c2', outcome: 'busy', notes: '' };
     const steps = leadJourney(missedLead, [managerCall, later]);
-    expect(steps.map((s) => s.id)).toEqual(['c2', 'c1', 'ai', 'first']);
-    expect(steps[1].meta).toBe('Call · Just now · Tarun Sobhani');
+    expect(steps.map((s) => s.id)).toEqual(['c2', 'c1', 'ai-0', 'contact-0']);
+    // Who logged the call is not shown.
+    expect(steps[1].meta).toBe('Call · Just now');
   });
 
-  it("shows Priya Menon's converted journey: missed call, AI bot, then the store manager's converting call", () => {
+  it("starts Priya Menon's journey again after her conversion when she calls back at 6:20 PM", () => {
     const priya = LEADS.find((l) => l.person === 'Priya Menon')!;
     expect(priya.status).toBe('Converted');
     const steps = leadJourney(priya, SEED_LEAD_CALLS[priya.id]);
-    expect(steps.map((s) => s.kind)).toEqual(['manager', 'ai', 'missed']);
-    expect(steps[0].log?.outcome).toBe('converted');
-    expect(steps[0].log?.notes).toBeTruthy();
+    expect(steps.map((s) => s.kind)).toEqual(['pending', 'ai', 'missed', 'manager', 'ai', 'missed']);
+    expect(steps[2].meta).toBe('Call · Today, 6:20 PM');
+    expect(steps[1].meta).toBe('AI call · Today, 6:23 PM');
+    expect(steps[3].log?.outcome).toBe('converted');
+    expect(steps[3].meta).toBe('Call · Today, 5:55 PM');
+  });
+
+  it("puts a new call after the customer's latest contact", () => {
+    const priya = LEADS.find((l) => l.person === 'Priya Menon')!;
+    const newCall: CallLog = { ...managerCall, id: 'c9', cycle: currentCycle(priya) };
+    const steps = leadJourney(priya, [...SEED_LEAD_CALLS[priya.id], newCall]);
+    expect(steps.map((s) => s.id)).toEqual(['c9', 'ai-1', 'contact-1', 'seed-l3-1', 'ai-0', 'contact-0']);
   });
 
   it('starts from how the customer first reached the store', () => {
@@ -84,6 +103,7 @@ describe('Customer history', () => {
     expect(screen.getByText('Newest first')).toBeTruthy();
     expect(screen.getByLabelText('Call outcome: Answered')).toBeTruthy();
     expect(screen.getByLabelText('Call outcome: Busy')).toBeTruthy();
+    expect(screen.queryByText(/Tarun Sobhani/)).toBeNull();
     // Notes open from "View note" rather than showing inline.
     expect(screen.queryByText('Wants a test drive on Saturday')).toBeNull();
     expect(screen.getAllByLabelText('View note: Called back by store manager')).toHaveLength(1);

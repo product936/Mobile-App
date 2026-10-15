@@ -4,11 +4,11 @@ import { AlarmClock, Check, Link2, PhoneCall, MapPin, Pencil, Phone, ShoppingBag
 
 import { Button } from '@/components/Button';
 import { layout } from '@/components/primitives';
-import { Sheet, SheetFooter, SheetGrabber, SheetHeader } from '@/components/Sheet';
+import { Sheet, SheetBottomInset, SheetGrabber, SheetHeader } from '@/components/Sheet';
 import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
 import type { LeadStatus } from '@/data/leads';
-import { callOutcome, leadJourney, type CallLog, type CallOutcome, type JourneyStep } from '@/lib/calls';
+import { callOutcome, currentCycle, leadJourney, type CallLog, type CallOutcome, type JourneyStep } from '@/lib/calls';
 import { dialableNumber, leadPresentation } from '@/lib/leads';
 import { CallOutcomeDialog, type CallNote } from '@/sheets/lead-details/CallOutcomeDialog';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
@@ -21,11 +21,11 @@ import { colors, radius, type } from '@/theme/tokens';
 /**
  * Lead details: name (added or edited), masked number for missed calls,
  * source and location, status, quick actions, a next-day reminder, versioned
- * notes and the customer's history. Name, status and reminder are a draft
- * saved with "Save & Done"; notes save on their own. "Call back" dials the
- * customer and asks what happened on the call; the call note is saved to
- * Customer history straight away, and outcomes like "Converted" update the
- * status draft. Calls in Customer history take notes the same way.
+ * notes and the customer's history. Everything saves as it changes: status
+ * and reminder straight away, the name when editing ends or the sheet
+ * closes. "Call back" dials the customer and asks what happened on the call;
+ * the call note goes to Customer history and its outcome sets the status.
+ * If the status changed, quick feedback is offered once the sheet closes.
  */
 export function LeadDetailSheet() {
   const leadId = useAppStore((s) => s.leadDetailId);
@@ -55,12 +55,15 @@ export function LeadDetailSheet() {
     initial: {},
   });
   const [callLogged, setCallLogged] = useState<{ label: string; status?: LeadStatus } | null>(null);
+  // Status when the sheet opened, to offer quick feedback on close if it changed.
+  const openedStatus = useRef<LeadStatus | null>(null);
 
   useEffect(() => {
     if (!lead) return;
     setName(lead.person ?? '');
     setEditingName(false);
     setStatus(lead.status);
+    openedStatus.current = lead.status;
     setStatusOpen(false);
     setReminder(!!lead.reminder);
     setCallOpen(false);
@@ -68,6 +71,29 @@ export function LeadDetailSheet() {
   }, [leadId]); // Reset the draft only when a lead is opened.
 
   const p = lead ? leadPresentation(lead) : null;
+
+  const changeStatus = (next: LeadStatus) => {
+    setStatus(next);
+    if (lead) save(lead.id, { status: next });
+  };
+  const changeReminder = (on: boolean) => {
+    setReminder(on);
+    if (lead) save(lead.id, { reminder: on });
+  };
+  const saveName = () => {
+    if (!lead) return;
+    const trimmed = name.trim() || undefined;
+    if (trimmed !== lead.person) save(lead.id, { name: trimmed });
+    setEditingName(false);
+  };
+  const closeSheet = ({ askFeedback = true } = {}) => {
+    saveName();
+    close();
+    // A status change is a completed task: offer optional quick feedback once the sheet has closed.
+    if (askFeedback && openedStatus.current && status !== openedStatus.current) {
+      setTimeout(() => openFeedback('status_update'), 400);
+    }
+  };
 
   const callBack = () => {
     if (!lead) return;
@@ -93,6 +119,7 @@ export function LeadDetailSheet() {
     const existing = callTarget.log;
     saveLeadCall(lead.id, {
       id: existing?.id ?? `call-${Date.now()}`,
+      cycle: existing?.cycle ?? currentCycle(lead),
       by: 'store_manager',
       outcome,
       notes: callNotes,
@@ -100,21 +127,21 @@ export function LeadDetailSheet() {
       author: existing?.author ?? user.name,
     });
     const next = callOutcome(outcome).leadStatus;
-    const changes = next && next !== status ? next : undefined;
-    if (changes) setStatus(changes);
+    const changes = next !== status ? next : undefined;
+    if (changes) changeStatus(changes);
     // Asked to call later: remind the store manager tomorrow.
-    if (outcome === 'call_later') setReminder(true);
+    if (outcome === 'call_later') changeReminder(true);
     setCallLogged({ label: callOutcome(outcome).label, status: changes });
     setCallOpen(false);
   };
   const hasName = !!lead?.person;
 
   return (
-    <Sheet visible={!!current} onClose={close} maxHeightRatio={0.94} accessibilityLabel="Lead details">
+    <Sheet visible={!!current} onClose={() => closeSheet()} maxHeightRatio={0.94} accessibilityLabel="Lead details">
       <SheetGrabber bottom={4} />
       <SheetHeader
         title="Lead details"
-        onClose={close}
+        onClose={() => closeSheet()}
         paddingX={22}
         topPadding={2}
         accessory={lead ? <StatusPill status={status} /> : null}
@@ -136,6 +163,9 @@ export function LeadDetailSheet() {
                 accessibilityLabel="Customer name"
                 value={name}
                 onChangeText={setName}
+                onBlur={saveName}
+                onSubmitEditing={saveName}
+                returnKeyType="done"
                 placeholder="Add customer name"
                 placeholderTextColor={colors.textTertiary}
                 autoFocus={editingName}
@@ -162,7 +192,7 @@ export function LeadDetailSheet() {
               open={statusOpen}
               onToggle={() => setStatusOpen((o) => !o)}
               onChange={(s) => {
-                setStatus(s);
+                changeStatus(s);
                 setStatusOpen(false);
               }}
             />
@@ -184,7 +214,7 @@ export function LeadDetailSheet() {
                 style={layout.flex1}
                 iconLeft={<Link2 size={16} color={colors.primaryAccent} strokeWidth={2} />}
                 onPress={() => {
-                  close();
+                  closeSheet({ askFeedback: false });
                   openAddLead('review');
                 }}
               />
@@ -201,7 +231,7 @@ export function LeadDetailSheet() {
                   </Text>
                   <Text size={type.footnote} color={colors.textSecondary} style={{ marginTop: 1 }}>
                     {callLogged.status
-                      ? `Added to customer history. Status set to ${callLogged.status}. Tap Save & Done to keep it.`
+                      ? `Added to customer history. Status set to ${callLogged.status}.`
                       : 'Added to customer history below.'}
                   </Text>
                 </View>
@@ -222,7 +252,7 @@ export function LeadDetailSheet() {
                     We'll nudge you tomorrow at 9:00 AM to follow up.
                   </Text>
                 </View>
-                <Pressable accessibilityRole="button" accessibilityLabel="Cancel reminder" onPress={() => setReminder(false)} hitSlop={10}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Cancel reminder" onPress={() => changeReminder(false)} hitSlop={10}>
                   <Text size={type.footnote} weight={700} color={colors.error}>
                     Cancel
                   </Text>
@@ -236,7 +266,7 @@ export function LeadDetailSheet() {
                 fontSize={type.subhead}
                 textColor={colors.textPrimary}
                 iconLeft={<AlarmClock size={17} color={colors.primaryAccent} strokeWidth={2} />}
-                onPress={() => setReminder(true)}
+                onPress={() => changeReminder(true)}
               />
             )}
 
@@ -248,18 +278,7 @@ export function LeadDetailSheet() {
             />
             <CustomerHistory steps={leadJourney(lead, calls)} onAddNote={addNote} />
           </ScrollView>
-          <SheetFooter>
-            <Button
-              label="Save & Done"
-              onPress={() => {
-                const statusChanged = status !== lead.status;
-                save(lead.id, { name: name.trim() || undefined, status, reminder });
-                close();
-                // A status change is a completed task: ask for optional quick feedback once the sheet has closed.
-                if (statusChanged) setTimeout(() => openFeedback('status_update'), 400);
-              }}
-            />
-          </SheetFooter>
+          <SheetBottomInset />
           <CallOutcomeDialog
             visible={callOpen}
             number={p.number}

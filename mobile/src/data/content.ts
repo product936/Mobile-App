@@ -147,8 +147,9 @@ export const SEED_NOTE_VERSIONS = [
 ];
 
 /**
- * Call backs already logged for sample leads. Priya Menon's journey runs
- * missed call, AI bot call back, then a store manager call that converted.
+ * Call backs already logged for sample leads. Priya Menon's first journey
+ * (missed call, AI bot call back) ended in a store manager call that
+ * converted; her repeat missed call at 6:20 PM starts the journey again.
  */
 export const SEED_LEAD_CALLS: Record<string, CallLog[]> = {
   l3: [
@@ -159,6 +160,7 @@ export const SEED_LEAD_CALLS: Record<string, CallLog[]> = {
       notes: 'Booked a Tata Ace and paid the booking amount. Delivery on Monday with finance through Tata Capital.',
       when: 'Today, 5:55 PM',
       author: 'Tarun Sobhani',
+      cycle: 0,
     },
   ],
 };

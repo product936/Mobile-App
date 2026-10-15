@@ -2,18 +2,21 @@ import { PURCHASE_OPTIONS, type Lead, type LeadStatus } from '@/data/leads';
 
 export type CallOutcome = 'answered' | 'converted' | 'no_answer' | 'busy' | 'call_later' | 'wrong_number';
 
+/** Colour of an outcome's chip in Customer history. */
+export type OutcomeTone = 'blue' | 'green' | 'red' | 'amber';
+
 /**
  * How the store manager's call went. `leadStatus` is the status the lead moves
  * to when the call is logged: Converted when the customer bought, Expired
  * for a wrong number, and "Called by store manager" otherwise.
  */
-export const CALL_OUTCOMES: { id: CallOutcome; label: string; leadStatus: LeadStatus }[] = [
-  { id: 'answered', label: 'Answered', leadStatus: 'Called by store manager' },
-  { id: 'converted', label: 'Converted', leadStatus: 'Converted' },
-  { id: 'no_answer', label: 'No answer', leadStatus: 'Called by store manager' },
-  { id: 'busy', label: 'Busy', leadStatus: 'Called by store manager' },
-  { id: 'call_later', label: 'Asked to call later', leadStatus: 'Called by store manager' },
-  { id: 'wrong_number', label: 'Wrong number', leadStatus: 'Expired' },
+export const CALL_OUTCOMES: { id: CallOutcome; label: string; leadStatus: LeadStatus; tone: OutcomeTone }[] = [
+  { id: 'answered', label: 'Answered', leadStatus: 'Called by store manager', tone: 'blue' },
+  { id: 'converted', label: 'Converted', leadStatus: 'Converted', tone: 'green' },
+  { id: 'no_answer', label: 'No answer', leadStatus: 'Called by store manager', tone: 'red' },
+  { id: 'busy', label: 'Busy', leadStatus: 'Called by store manager', tone: 'amber' },
+  { id: 'call_later', label: 'Asked to call later', leadStatus: 'Called by store manager', tone: 'amber' },
+  { id: 'wrong_number', label: 'Wrong number', leadStatus: 'Expired', tone: 'red' },
 ];
 
 export const CALL_NOTES_MAX = 500;
@@ -35,9 +38,16 @@ export type CallLog = {
   outcome: CallOutcome;
   notes: string;
   when: string;
-  /** Name of the person who logged it. */
+  /** Name of the person who logged it (kept for the record, not shown). */
   author: string;
+  /** Which of the customer's contacts this call followed: 0 for the first, 1 for the first repeat, and so on. */
+  cycle?: number;
 };
+
+/** The contact a new call follows: the customer's latest one. */
+export function currentCycle(lead: Lead): number {
+  return lead.repeatContacts?.length ?? 0;
+}
 
 /** Adds or replaces a call log (matched by id). */
 export function upsertCallLog(logs: CallLog[], log: CallLog): CallLog[] {
@@ -82,42 +92,50 @@ const FIRST_STEP: Record<Lead['source'], Pick<JourneyStep, 'kind' | 'title'> & {
 };
 
 /**
- * The lead's journey, newest first: the next step (a prompt for the store
- * manager to call, until they have logged one), logged call backs, the AI
- * bot's call back (which also qualifies the purchase intent), and how the
- * customer first reached the store.
+ * The lead's journey, newest first. Each time the customer gets in touch (the
+ * first contact, then any repeat missed calls) the journey runs again: the
+ * contact, the AI bot's call back (which also qualifies the purchase intent),
+ * then the store manager's call backs. Until the store manager has logged a
+ * call after the latest contact, the top step prompts them to call and add a
+ * note.
  */
 export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
-  const first = FIRST_STEP[lead.firstContact ?? lead.source];
+  const contacts = [lead.time, ...(lead.repeatContacts ?? [])];
+  const latest = contacts.length - 1;
   // Built oldest first, then reversed.
-  const steps: JourneyStep[] = [
-    { id: 'first', kind: first.kind, title: first.title, meta: `${first.channel} · Today, ${lead.time}` },
-    {
-      id: 'ai',
-      kind: 'ai',
-      title: 'Called back by AI bot',
-      meta: `AI call · Today, ${addMinutes(lead.time, 3)}`,
-      intent: qualifiedIntent(lead),
-      recordingSeconds: 32,
-    },
-  ];
-  for (const log of logs) {
-    const manager = log.by === 'store_manager';
-    steps.push({
-      id: log.id,
-      kind: manager ? 'manager' : 'ai',
-      title: manager ? 'Called back by store manager' : 'Called back by AI bot',
-      meta: `Call · ${log.when} · ${log.author}`,
-      log,
-    });
-  }
-  if (!logs.some((l) => l.by === 'store_manager')) {
-    steps.push({
-      id: 'pending',
-      kind: 'pending',
-      title: 'Call back by store manager',
-      meta: 'Next step: call the customer, then add a note about the call.',
-    });
-  }
+  const steps: JourneyStep[] = [];
+  contacts.forEach((time, cycle) => {
+    const first = cycle === 0 ? FIRST_STEP[lead.firstContact ?? lead.source] : FIRST_STEP.Call;
+    steps.push(
+      { id: `contact-${cycle}`, kind: first.kind, title: first.title, meta: `${first.channel} · Today, ${time}` },
+      {
+        id: `ai-${cycle}`,
+        kind: 'ai',
+        title: 'Called back by AI bot',
+        meta: `AI call · Today, ${addMinutes(time, 3)}`,
+        intent: qualifiedIntent(lead),
+        recordingSeconds: 32,
+      },
+    );
+    const cycleLogs = logs.filter((l) => Math.min(l.cycle ?? 0, latest) === cycle);
+    for (const log of cycleLogs) {
+      const manager = log.by === 'store_manager';
+      steps.push({
+        id: log.id,
+        kind: manager ? 'manager' : 'ai',
+        title: manager ? 'Called back by store manager' : 'Called back by AI bot',
+        meta: `Call · ${log.when}`,
+        log,
+      });
+    }
+    if (cycle === latest && !cycleLogs.some((l) => l.by === 'store_manager')) {
+      steps.push({
+        id: 'pending',
+        kind: 'pending',
+        title: 'Call back by store manager',
+        meta: 'Next step: call the customer, then add a note about the call.',
+      });
+    }
+  });
   return steps.reverse();
 }
