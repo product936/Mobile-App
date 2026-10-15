@@ -15,7 +15,7 @@ npm run preview:web     # builds the clickable web preview into dist/preview
 
 ### Clickable web preview
 
-`npm run preview:web` exports the web build and writes `dist/preview/connect-preview.html` plus `connect-app.js`, with the fonts and logos embedded. Publish both files together as a private claude.ai artifact; on larger screens the app shows inside a phone mockup. Republishing the same page keeps the same link.
+`npm run preview:web` exports the web build and writes `dist/preview/connect-preview.html` plus `connect-app.js`, with the fonts and logos embedded. Publish both files together as a private claude.ai artifact; on larger screens the app shows inside an iPhone 15 Pro Max mockup at true proportions, scaled evenly to fit the window. Republishing the same page keeps the same link.
 
 ### Signing in and choosing a role
 

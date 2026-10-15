@@ -7,8 +7,9 @@
  * The artifact viewer loads only its own published files and data: URIs, so
  * this takes the `expo export --platform web` output, embeds the five Hanken
  * Grotesk weights the app uses and the two logos into the JS bundle, and writes
- * a small page that loads it. Publish both files together. On screens with room
- * for it the app shows inside a phone mockup; on phones it fills the screen.
+ * a small page that loads it. Publish both files together. On larger screens the
+ * app shows inside an iPhone 15 Pro Max mockup at true proportions (scaled
+ * evenly to fit the window); on phones it fills the screen.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -52,22 +53,28 @@ js = `try { if (location.pathname !== '/') history.replaceState(null, '', '/'); 
 
 const statusIcons = `<svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4.5" width="3" height="7.5" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor" aria-hidden="true"><path d="M8.5 2.4c2.3 0 4.4.9 6 2.4l1.3-1.4A11 11 0 0 0 8.5.4 11 11 0 0 0 1.2 3.4L2.5 4.8a8.6 8.6 0 0 1 6-2.4Z"/><path d="M8.5 6.1c1.3 0 2.5.5 3.4 1.4l1.3-1.4A7 7 0 0 0 8.5 4a7 7 0 0 0-4.7 2.1l1.3 1.4a4.8 4.8 0 0 1 3.4-1.4Z"/><circle cx="8.5" cy="10" r="1.8"/></svg><svg width="26" height="12" viewBox="0 0 26 12" fill="none" aria-hidden="true"><rect x="0.5" y="0.5" width="22" height="11" rx="3" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx="0.75" fill="currentColor" opacity="0.4"/></svg>`;
 
+// iPhone 15 Pro Max, in points: 430 x 932 screen, 55pt display corners,
+// 59pt top inset (status bar + Dynamic Island), 34pt bottom inset (home indicator).
+const device = { w: 430, h: 932, radius: 55, insetTop: 59, insetBottom: 34, frame: 18 };
+
 const html = `<title>Connect Store App</title>
 <style>
-  /* Phone mockup centered on a quiet backdrop on larger screens; plain full screen on phones. */
+  /* An iPhone 15 Pro Max at true proportions, scaled evenly to fit, on a quiet backdrop. Phones get the plain app. */
   :root {
     --backdrop: #E7EBF3;
-    --backdrop-glow: #F4F6FB;
-    --bezel: #121217;
-    --bezel-edge: #2A2A33;
+    --backdrop-glow: #F5F7FB;
+    --bezel: #0B0B0E;
+    --titanium: #8C8882;
+    --titanium-edge: #5F5C58;
+    --island: #000000;
     --app-surface: #F9FAFD;
     --status-ink: #111827;
-    --device-shadow: 0 40px 90px -24px rgba(14, 0, 113, 0.40), 0 10px 28px rgba(15, 23, 42, 0.22);
+    --device-shadow: 0 50px 100px -30px rgba(14, 0, 113, 0.42), 0 14px 32px rgba(15, 23, 42, 0.22);
   }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --backdrop: #10131B; --backdrop-glow: #1A1F2B; --bezel-edge: #3A3A46; --device-shadow: 0 40px 90px -24px rgba(0, 0, 0, 0.75); color-scheme: dark; }
+    :root:not([data-theme="light"]) { --backdrop: #0F121A; --backdrop-glow: #1A1F2B; --device-shadow: 0 50px 100px -30px rgba(0, 0, 0, 0.8); color-scheme: dark; }
   }
-  :root[data-theme="dark"] { --backdrop: #10131B; --backdrop-glow: #1A1F2B; --bezel-edge: #3A3A46; --device-shadow: 0 40px 90px -24px rgba(0, 0, 0, 0.75); color-scheme: dark; }
+  :root[data-theme="dark"] { --backdrop: #0F121A; --backdrop-glow: #1A1F2B; --device-shadow: 0 50px 100px -30px rgba(0, 0, 0, 0.8); color-scheme: dark; }
   html { height: 100%; background: radial-gradient(1200px 800px at 50% 0%, var(--backdrop-glow), var(--backdrop) 60%); background-color: var(--backdrop); }
   body {
     height: 100%;
@@ -79,51 +86,57 @@ const html = `<title>Connect Store App</title>
     transform: translateZ(0);
   }
   #root { display: flex; height: 100%; flex: 1; }
-  #statusbar { display: none; }
+  .device-chrome { display: none; }
 
-  @media (min-width: 600px) and (min-height: 620px) {
-    html { display: grid; place-items: center; }
-    body {
-      box-sizing: border-box;
-      width: 390px;
-      height: min(844px, calc(100dvh - 72px));
-      padding-top: 44px;
-      padding-bottom: 28px;
-      border-radius: 44px;
-      box-shadow: 0 0 0 12px var(--bezel), 0 0 0 13px var(--bezel-edge), var(--device-shadow);
-    }
-    /* Notch and home indicator sit above the app and its sheets, as on a device. */
-    body::before {
-      content: "";
-      position: fixed; top: 0; left: 50%; transform: translateX(-50%);
-      width: 126px; height: 30px;
-      background: var(--bezel);
-      border-radius: 0 0 18px 18px;
-      z-index: 2147483647;
-    }
-    body::after {
-      content: "";
-      position: fixed; bottom: 9px; left: 50%; transform: translateX(-50%);
-      width: 134px; height: 5px;
-      border-radius: 9999px;
-      background: var(--status-ink);
-      opacity: 0.85;
-      z-index: 2147483647;
-      pointer-events: none;
-    }
-    #statusbar {
-      display: flex; align-items: flex-end; justify-content: space-between;
-      position: fixed; top: 0; left: 0; right: 0; height: 44px;
-      padding: 0 28px 9px 34px; box-sizing: border-box;
-      color: var(--status-ink);
-      font: 600 15px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-variant-numeric: tabular-nums;
-      pointer-events: none;
-    }
-    #statusbar .icons { display: flex; align-items: center; gap: 6px; }
+  html.framed { overflow: hidden; display: grid; place-items: center; }
+  html.framed body {
+    flex: none;
+    width: ${device.w}px;
+    height: ${device.h}px;
+    border-radius: ${device.radius}px;
+    transform: scale(var(--device-scale, 1));
+    transform-origin: center center;
+    box-shadow:
+      0 0 0 ${device.frame - 4}px var(--bezel),
+      0 0 0 ${device.frame - 1}px var(--titanium),
+      0 0 0 ${device.frame}px var(--titanium-edge),
+      var(--device-shadow);
   }
+  html.framed .device-chrome { display: flex; position: fixed; z-index: 2147483647; pointer-events: none; }
+  /* Status bar: time and icons sit in the two "ears" either side of the Dynamic Island. */
+  .status-bar {
+    top: 0; left: 0; right: 0; height: ${device.insetTop}px;
+    align-items: center; justify-content: space-between;
+    padding: 0 0 6px; box-sizing: border-box;
+    color: var(--status-ink);
+    font: 600 17px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .status-bar .ear { width: 152px; display: flex; justify-content: center; align-items: center; gap: 6px; }
+  .island { top: 11px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; border-radius: 9999px; background: var(--island); }
+  .home-indicator { bottom: 8px; left: 50%; transform: translateX(-50%); width: 140px; height: 5px; border-radius: 9999px; background: var(--status-ink); opacity: 0.9; }
 </style>
-<div id="statusbar" aria-hidden="true"><span>9:41</span><span class="icons">${statusIcons}</span></div>
+<script>
+  // Large screens show the device; phones show the app full screen.
+  (function () {
+    if (window.innerWidth < 600) return;
+    var root = document.documentElement;
+    root.classList.add('framed');
+    // The app reads these as the device's safe-area insets.
+    window.__CONNECT_PREVIEW_INSETS__ = { top: ${device.insetTop}, bottom: ${device.insetBottom}, left: 0, right: 0 };
+    function fit() {
+      var outerW = ${device.w} + 2 * ${device.frame}, outerH = ${device.h} + 2 * ${device.frame};
+      var s = Math.min(1, (window.innerWidth - 48) / outerW, (window.innerHeight - 48) / outerH);
+      root.style.setProperty('--device-scale', String(Math.max(0.4, s)));
+    }
+    fit();
+    window.addEventListener('resize', fit);
+  })();
+</script>
+<div class="device-chrome status-bar" aria-hidden="true"><span class="ear">9:41</span><span class="ear">${statusIcons}</span></div>
+<div class="device-chrome island" aria-hidden="true"></div>
+<div class="device-chrome home-indicator" aria-hidden="true"></div>
 <div id="root"></div>
 <script src="connect-app.js"></script>
 `;

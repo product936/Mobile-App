@@ -44,6 +44,14 @@ export function RangeSlider({
   label: (v: number) => string;
 }) {
   const [width, setWidth] = useState(0);
+  const track = useRef<View>(null);
+  // On-screen position and width of the track, which differ from layout units when the view is scaled.
+  const screenBox = useRef({ x: 0, w: 0 });
+  const toLocalX = (pageX: number) => {
+    const { x, w } = screenBox.current;
+    const lw = latest.current.width;
+    return w ? ((pageX - x) * lw) / w : 0;
+  };
   const latest = useRef({ low, high, width, onChange });
   latest.current = { low, high, width, onChange };
   const active = useRef<'low' | 'high'>('low');
@@ -57,11 +65,11 @@ export function RangeSlider({
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (e) => {
         const { low: l, high: h, width: w } = latest.current;
-        const v = valueAt(e.nativeEvent.locationX, w, min, max);
+        const v = valueAt(toLocalX(e.nativeEvent.pageX), w, min, max);
         active.current = pickThumb(v, l, h, max);
         update(v);
       },
-      onPanResponderMove: (e) => update(valueAt(e.nativeEvent.locationX, latest.current.width, min, max)),
+      onPanResponderMove: (e) => update(valueAt(toLocalX(e.nativeEvent.pageX), latest.current.width, min, max)),
     }),
   ).current;
 
@@ -83,7 +91,17 @@ export function RangeSlider({
   };
 
   return (
-    <View style={styles.wrap} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} {...responder.panHandlers}>
+    <View
+      ref={track}
+      style={styles.wrap}
+      onLayout={(e) => {
+        setWidth(e.nativeEvent.layout.width);
+        track.current?.measureInWindow((x, _y, w) => {
+          screenBox.current = { x, w };
+        });
+      }}
+      {...responder.panHandlers}
+    >
       <View style={styles.track} pointerEvents="none" />
       <View style={[styles.fill, { left: pos(low), width: Math.max(0, pos(high) - pos(low)) }]} pointerEvents="none" />
       {(['low', 'high'] as const).map((which) => {

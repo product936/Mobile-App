@@ -6,7 +6,7 @@ Clickable preview (always the latest version): https://claude.ai/artifact/MyroQ1
 
 ## Unreleased
 
-- **Clickable web preview** ([#5](https://github.com/product936/Mobile-App/pull/5)): `npm run preview:web` builds the app as a private claude.ai page shown inside a phone mockup on larger screens. Sheets now size to the space they actually have.
+- **Clickable web preview** ([#5](https://github.com/product936/Mobile-App/pull/5)): `npm run preview:web` builds the app as a private claude.ai page shown inside an iPhone 15 Pro Max mockup at true proportions on larger screens, with the device's safe-area insets. Sheets now size to the space they actually have, and the rating slider stays accurate when the view is scaled.
 
 ## 2026-10-14
 
