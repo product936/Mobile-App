@@ -1,5 +1,7 @@
 export type LeadStatus =
   | 'Missed'
+  | 'Called by AI bot'
+  | 'Called by store manager'
   | 'Not contacted'
   | 'Set for reminder'
   | 'Contacted'
@@ -19,11 +21,17 @@ export type Lead = {
   hot?: boolean;
   /** Name the customer entered themselves (lead-form submissions only). */
   person?: string;
+  /** How the customer first reached the store, when it differs from `source` (starts their journey in Customer history). */
+  firstContact?: LeadSource;
+  /** Times of later missed calls from the same customer; each starts the journey again. */
+  repeatContacts?: string[];
 };
 
 export const LEAD_STATUS_FILTERS = [
   'All status',
   'Missed',
+  'Called by AI bot',
+  'Called by store manager',
   'Not contacted',
   'Set for reminder',
   'Contacted',
@@ -39,6 +47,8 @@ export type LeadSourceFilter = (typeof LEAD_SOURCE_FILTERS)[number];
 /** Statuses a store user can move a lead to from the lead details sheet. */
 export const EDITABLE_LEAD_STATUSES: LeadStatus[] = [
   'Missed',
+  'Called by AI bot',
+  'Called by store manager',
   'Not contacted',
   'Set for reminder',
   'Contacted',
@@ -51,7 +61,7 @@ export const PURCHASE_OPTIONS = ['Tata Ace', 'Tata Intra V30', 'Tata 407', 'Serv
 export const LEADS: Lead[] = [
   { id: 'l1', number: '90544 64192', status: 'Contacted', source: 'Call', time: '5:40 PM', hot: true },
   { id: 'l2', number: '98551 35120', status: 'Missed', source: 'Call', time: '5:39 PM' },
-  { id: 'l3', number: '98330 04426 (1)', status: 'Converted', source: 'Form', time: '5:39 PM', person: 'Priya Menon' },
+  { id: 'l3', number: '98330 04426 (1)', status: 'Converted', source: 'Form', time: '5:39 PM', person: 'Priya Menon', firstContact: 'Call', repeatContacts: ['6:20 PM'] },
   { id: 'l4', number: '98446 03109', status: 'Missed', source: 'Call', time: '5:38 PM' },
   { id: 'l5', number: '82812 07148 (1)', status: 'Not contacted', source: 'Walk-in', time: '5:38 PM' },
   { id: 'l6', number: '98214 05165 (1)', status: 'Set for reminder', source: 'Call', time: '5:37 PM' },
