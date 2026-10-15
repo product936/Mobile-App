@@ -1,3 +1,4 @@
+import { STORE } from '@/config/roles';
 import { PURCHASE_OPTIONS, type Lead, type LeadStatus } from '@/data/leads';
 
 export type CallOutcome = 'answered' | 'converted' | 'no_answer' | 'busy' | 'call_later' | 'wrong_number';
@@ -110,7 +111,7 @@ const FIRST_STEP: Record<Lead['source'], Pick<JourneyStep, 'kind' | 'title'>> = 
  * call after the latest contact, the top step prompts them to call and add a
  * note.
  */
-export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
+export function leadJourney(lead: Lead, logs: CallLog[], manager: string = STORE.manager): JourneyStep[] {
   const contacts = [lead.time, ...(lead.repeatContacts ?? [])];
   const latest = contacts.length - 1;
   // Built oldest first, then reversed.
@@ -131,11 +132,11 @@ export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
     );
     const cycleLogs = logs.filter((l) => Math.min(l.cycle ?? 0, latest) === cycle);
     for (const log of cycleLogs) {
-      const manager = log.by === 'store_manager';
+      const byManager = log.by === 'store_manager';
       steps.push({
         id: log.id,
-        kind: manager ? 'manager' : 'ai',
-        title: manager ? 'Called back by store manager' : 'Called back by AI bot',
+        kind: byManager ? 'manager' : 'ai',
+        title: byManager ? `Called back by ${manager}` : 'Called back by AI bot',
         time: shortTime(log.when),
         log,
       });
@@ -144,8 +145,9 @@ export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
       steps.push({
         id: 'pending',
         kind: 'pending',
-        title: 'Call back by store manager',
-        meta: 'Next step: call the customer, then add a note about the call.',
+        title: `Call back by ${manager}`,
+        // Handed to the store manager when the AI bot's call ended.
+        time: addMinutes(time, 3),
       });
     }
   });

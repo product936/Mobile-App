@@ -49,13 +49,15 @@ describe('lead journey', () => {
   it('is newest first, with times and no source labels', () => {
     const steps = leadJourney(missedLead, []);
     expect(steps.map((s) => s.kind)).toEqual(['pending', 'ai', 'missed']);
-    expect(steps[0].title).toBe('Call back by store manager');
-    expect(steps[0].time).toBeUndefined();
+    // The store manager is named, and every step has a time.
+    expect(steps[0].title).toBe('Call back by Rahul Sharma');
+    expect(steps[0].time).toBe('5:42 PM');
+    expect(steps[0].meta).toBeUndefined();
+    expect(steps.every((s) => !!s.time)).toBe(true);
     expect(steps[1].title).toBe('Called back by AI bot');
     expect(steps[1].time).toBe('5:42 PM');
     expect(steps[1].intent).toBeTruthy();
     expect(steps[2].time).toBe('5:39 PM');
-    expect(steps.every((s) => !s.meta || !/AI call|Call ·/.test(s.meta))).toBe(true);
   });
 
   it("shows the latest AI call's recording as on its way, and earlier ones as ready", () => {
@@ -70,6 +72,7 @@ describe('lead journey', () => {
     const later: CallLog = { ...managerCall, id: 'c2', notes: 'Asked for a brochure' };
     const steps = leadJourney(missedLead, [managerCall, later]);
     expect(steps.map((s) => s.id)).toEqual(['c2', 'c1', 'ai-0', 'contact-0']);
+    expect(steps[0].title).toBe('Called back by Rahul Sharma');
     expect(steps[1].time).toBe('Just now');
   });
 
@@ -120,12 +123,12 @@ describe('Customer history', () => {
     expect(screen.getByText('Just now')).toBeTruthy();
     expect(screen.getByText('5:42 PM')).toBeTruthy();
     expect(screen.getByText('5:39 PM')).toBeTruthy();
-    expect(screen.queryByText(/AI call|Call ·/)).toBeNull();
+    expect(screen.queryByText(/AI call|Call ·|Next step/)).toBeNull();
     expect(screen.queryByText('Wants a test drive on Saturday')).toBeNull();
     expect(screen.queryByText(/Tarun Sobhani/)).toBeNull();
     expect(screen.queryByLabelText(/: Called back by AI bot$/)).toBeNull();
 
-    await fireEvent.press(screen.getByLabelText('View note: Called back by store manager'));
+    await fireEvent.press(screen.getByLabelText('View note: Called back by Rahul Sharma'));
     expect(onAddNote.mock.calls[0][0].log.id).toBe('c1');
   });
 
@@ -138,7 +141,7 @@ describe('Customer history', () => {
 
   it('prompts the store manager to add a call note until a call is logged', async () => {
     const onAddNote = await renderHistory(leadJourney(missedLead, []));
-    await fireEvent.press(screen.getByLabelText('Add call note: Call back by store manager'));
+    await fireEvent.press(screen.getByLabelText('Add call note: Call back by Rahul Sharma'));
     expect(onAddNote.mock.calls[0][0].kind).toBe('pending');
   });
 });
