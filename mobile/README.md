@@ -10,7 +10,12 @@ npx expo start          # then press i / a, or scan the QR code with Expo Go
 npx expo start --web    # browser preview
 npm test                # unit tests for the product rules
 npm run typecheck
+npm run preview:web     # builds the clickable web preview into dist/preview
 ```
+
+### Clickable web preview
+
+`npm run preview:web` exports the web build and writes `dist/preview/connect-preview.html` plus `connect-app.js`, with the fonts and logos embedded. Publish both files together as a private claude.ai artifact; on wide screens the app sits in a phone-width column. Republishing the same page keeps the same link.
 
 ### Signing in and choosing a role
 
