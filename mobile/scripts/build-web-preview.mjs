@@ -7,9 +7,9 @@
  * The artifact viewer loads only its own published files and data: URIs, so
  * this takes the `expo export --platform web` output, embeds the five Hanken
  * Grotesk weights the app uses and the two logos into the JS bundle, and writes
- * a small page that loads it. Publish both files together. On larger screens the
- * app shows inside an iPhone 15 Pro Max mockup at true proportions (scaled
- * evenly to fit the window); on phones it fills the screen.
+ * a small page that loads it. Publish both files together. The app always shows
+ * inside an iPhone 15 Pro Max mockup at true proportions, scaled evenly to fit
+ * the window or panel it is viewed in.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -59,7 +59,7 @@ const device = { w: 430, h: 932, radius: 55, insetTop: 59, insetBottom: 34, fram
 
 const html = `<title>Connect Store App</title>
 <style>
-  /* An iPhone 15 Pro Max at true proportions, scaled evenly to fit, on a quiet backdrop. Phones get the plain app. */
+  /* An iPhone 15 Pro Max at true proportions, scaled evenly to fit any window, on a quiet backdrop. */
   :root {
     --backdrop: #E7EBF3;
     --backdrop-glow: #F5F7FB;
@@ -88,13 +88,17 @@ const html = `<title>Connect Store App</title>
   #root { display: flex; height: 100%; flex: 1; }
   .device-chrome { display: none; }
 
-  html.framed { overflow: hidden; display: grid; place-items: center; }
+  html.framed { overflow: hidden; }
+  /* Centered on the window at any scale: move the device's center to the window's center, then scale around it. */
   html.framed body {
-    flex: none;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin: 0;
     width: ${device.w}px;
     height: ${device.h}px;
     border-radius: ${device.radius}px;
-    transform: scale(var(--device-scale, 1));
+    transform: translate(-50%, -50%) scale(var(--device-scale, 1));
     transform-origin: center center;
     box-shadow:
       0 0 0 ${device.frame - 4}px var(--bezel),
@@ -118,17 +122,18 @@ const html = `<title>Connect Store App</title>
   .home-indicator { bottom: 8px; left: 50%; transform: translateX(-50%); width: 140px; height: 5px; border-radius: 9999px; background: var(--status-ink); opacity: 0.9; }
 </style>
 <script>
-  // Large screens show the device; phones show the app full screen.
+  // Always show the device, scaled evenly to fit the window or panel it is viewed in.
   (function () {
-    if (window.innerWidth < 600) return;
     var root = document.documentElement;
     root.classList.add('framed');
     // The app reads these as the device's safe-area insets.
     window.__CONNECT_PREVIEW_INSETS__ = { top: ${device.insetTop}, bottom: ${device.insetBottom}, left: 0, right: 0 };
     function fit() {
       var outerW = ${device.w} + 2 * ${device.frame}, outerH = ${device.h} + 2 * ${device.frame};
-      var s = Math.min(1, (window.innerWidth - 48) / outerW, (window.innerHeight - 48) / outerH);
-      root.style.setProperty('--device-scale', String(Math.max(0.4, s)));
+      var w = window.innerWidth, h = window.innerHeight;
+      var margin = Math.min(w, h) < 700 ? 16 : 32;
+      var s = Math.min(1, (w - 2 * margin) / outerW, (h - 2 * margin) / outerH);
+      root.style.setProperty('--device-scale', String(Math.max(0.2, s)));
     }
     fit();
     window.addEventListener('resize', fit);
