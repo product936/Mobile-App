@@ -130,13 +130,17 @@ const html = `<title>Connect Store App</title>
     window.__CONNECT_PREVIEW_INSETS__ = { top: ${device.insetTop}, bottom: ${device.insetBottom}, left: 0, right: 0 };
     function fit() {
       var outerW = ${device.w} + 2 * ${device.frame}, outerH = ${device.h} + 2 * ${device.frame};
-      var w = window.innerWidth, h = window.innerHeight;
+      var w = window.innerWidth || root.clientWidth, h = window.innerHeight || root.clientHeight;
+      // A frame can report no size before it is laid out; the observers below fit again once it has one.
+      if (!w || !h) return;
       var margin = Math.min(w, h) < 700 ? 16 : 32;
       var s = Math.min(1, (w - 2 * margin) / outerW, (h - 2 * margin) / outerH);
       root.style.setProperty('--device-scale', String(Math.max(0.2, s)));
     }
     fit();
     window.addEventListener('resize', fit);
+    window.addEventListener('load', fit);
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(root);
   })();
 </script>
 <div class="device-chrome status-bar" aria-hidden="true"><span class="ear">9:41</span><span class="ear">${statusIcons}</span></div>
