@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   Bot,
   ChevronDown,
+  History,
   FileText,
   Pause,
   PhoneCall,
@@ -20,7 +21,7 @@ import { Text } from '@/components/Text';
 import { callOutcome, type JourneyStep, type OutcomeTone } from '@/lib/calls';
 import { usePlayback } from '@/lib/usePlayback';
 import { useReducedMotion } from '@/lib/useReducedMotion';
-import { colors, motion, radius, type } from '@/theme/tokens';
+import { colors, motion, radius, shadows, type } from '@/theme/tokens';
 
 const KIND: Record<JourneyStep['kind'], { Icon: LucideIcon; bg: string; fg: string }> = {
   missed: { Icon: PhoneMissed, bg: colors.red100, fg: colors.error },
@@ -59,27 +60,47 @@ export function CustomerHistory({ steps, onAddNote }: { steps: JourneyStep[]; on
     }).start();
   }, [open, reduced, turn]);
   const count = steps.filter((s) => s.kind !== 'pending').length;
+  const latest = steps.find((s) => s.kind !== 'pending');
+  const countLabel = `${count} ${count === 1 ? 'interaction' : 'interactions'}`;
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, !open && styles.sectionClosed]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Customer history, ${count} ${count === 1 ? 'interaction' : 'interactions'}`}
+        accessibilityLabel={`Customer history, ${countLabel}`}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((o) => !o)}
         style={styles.header}
       >
+        <View style={[styles.headerIcon, !open && { backgroundColor: colors.white }]}>
+          <History size={18} color={colors.primaryAccent} strokeWidth={2.2} />
+        </View>
         <View style={layout.flex1}>
-          <Text size={type.subhead} weight={600} color={colors.textSecondary} accessibilityRole="header">
-            Customer history
-          </Text>
-          <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 1 }}>
-            {count} {count === 1 ? 'interaction' : 'interactions'}
-            {open ? ', newest first' : ''}
+          <View style={[layout.row, { gap: 8 }]}>
+            <Text size={type.headline} weight={700} color={colors.textPrimary} accessibilityRole="header">
+              Customer history
+            </Text>
+            <View style={styles.countPill}>
+              <Text size={type.caption} weight={700} color={colors.primaryAccent} lineHeight={1.2}>
+                {count}
+              </Text>
+            </View>
+          </View>
+          <Text size={type.footnote} color={colors.textSecondary} numberOfLines={1} style={{ marginTop: 2 }}>
+            {open
+              ? `${countLabel}, newest first`
+              : latest
+                ? `Latest: ${latest.title}${latest.time ? ` · ${latest.time}` : ''}`
+                : countLabel}
           </Text>
         </View>
-        <Animated.View style={{ transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-          <ChevronDown size={18} color={colors.textTertiary} strokeWidth={2.2} />
+        <Animated.View
+          style={[
+            styles.chevron,
+            { transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] },
+          ]}
+        >
+          <ChevronDown size={18} color={colors.primaryAccent} strokeWidth={2.4} />
         </Animated.View>
       </Pressable>
       {open ? <View style={styles.list}>{steps.map((step, i) => {
@@ -246,7 +267,36 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     overflow: 'hidden',
   },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16 },
+  // Closed, the card is tinted and lifted so it reads as something to open.
+  sectionClosed: { backgroundColor: colors.unreadTint, borderColor: colors.infoBorder, boxShadow: shadows.sm },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 14 },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.lg,
+    backgroundColor: colors.blue50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countPill: {
+    minWidth: 22,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.blue50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chevron: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.infoBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   list: { paddingTop: 14, paddingHorizontal: 14, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
   rail: { width: 32, alignItems: 'center' },
   icon: { width: 32, height: 32, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },

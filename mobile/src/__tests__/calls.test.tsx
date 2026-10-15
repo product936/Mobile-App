@@ -106,6 +106,8 @@ describe('Customer history', () => {
     await render(<CustomerHistory steps={leadJourney(missedLead, [])} onAddNote={jest.fn()} />);
     const header = screen.getByLabelText('Customer history, 2 interactions');
     expect(screen.queryByText('Called back by AI bot')).toBeNull();
+    // Closed, it previews the latest interaction.
+    expect(screen.getByText('Latest: Called back by AI bot · 5:42 PM')).toBeTruthy();
     await fireEvent.press(header);
     expect(screen.getByText('Called back by AI bot')).toBeTruthy();
     expect(screen.getByText('2 interactions, newest first')).toBeTruthy();
