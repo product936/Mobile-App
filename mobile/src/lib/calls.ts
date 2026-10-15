@@ -3,14 +3,15 @@ import { PURCHASE_OPTIONS, type Lead, type LeadStatus } from '@/data/leads';
 export type CallOutcome = 'connected' | 'no_answer' | 'busy' | 'call_later' | 'wrong_number';
 
 /**
- * How a call went. `leadStatus` is the status the lead moves to when the call
- * is logged; outcomes without one leave the status as it is.
+ * How the store manager's call went. `leadStatus` is the status the lead moves
+ * to when the call is logged: "Called by store manager", or Expired for a
+ * wrong number.
  */
-export const CALL_OUTCOMES: { id: CallOutcome; label: string; leadStatus?: LeadStatus }[] = [
-  { id: 'connected', label: 'Connected', leadStatus: 'Contacted' },
-  { id: 'no_answer', label: 'No answer' },
-  { id: 'busy', label: 'Busy' },
-  { id: 'call_later', label: 'Asked to call later', leadStatus: 'Set for reminder' },
+export const CALL_OUTCOMES: { id: CallOutcome; label: string; leadStatus: LeadStatus }[] = [
+  { id: 'connected', label: 'Connected', leadStatus: 'Called by store manager' },
+  { id: 'no_answer', label: 'No answer', leadStatus: 'Called by store manager' },
+  { id: 'busy', label: 'Busy', leadStatus: 'Called by store manager' },
+  { id: 'call_later', label: 'Asked to call later', leadStatus: 'Called by store manager' },
   { id: 'wrong_number', label: 'Wrong number', leadStatus: 'Expired' },
 ];
 
@@ -20,17 +21,11 @@ export function callOutcome(id: CallOutcome) {
   return CALL_OUTCOMES.find((o) => o.id === id)!;
 }
 
-/** Who made a call back: the AI bot that calls first, or the store manager. */
+/**
+ * Who made a call back. The AI bot calls first (shown in Customer history
+ * from the bot's data); the store manager logs their own calls.
+ */
 export type Caller = 'ai_bot' | 'store_manager';
-
-export const CALLERS: { id: Caller; label: string }[] = [
-  { id: 'ai_bot', label: 'Called by AI bot' },
-  { id: 'store_manager', label: 'Called by store manager' },
-];
-
-export function callerLabel(id: Caller): string {
-  return CALLERS.find((c) => c.id === id)!.label;
-}
 
 /** A call back logged against a lead, with what happened on it. */
 export type CallLog = {

@@ -8,7 +8,7 @@ import { Sheet, SheetFooter, SheetGrabber, SheetHeader } from '@/components/Shee
 import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
 import type { LeadStatus } from '@/data/leads';
-import { callOutcome, leadJourney, type CallLog, type Caller, type CallOutcome, type JourneyStep } from '@/lib/calls';
+import { callOutcome, leadJourney, type CallLog, type CallOutcome, type JourneyStep } from '@/lib/calls';
 import { dialableNumber, leadPresentation } from '@/lib/leads';
 import { CallOutcomeDialog, type CallNote } from '@/sheets/lead-details/CallOutcomeDialog';
 import { CustomerHistory } from '@/sheets/lead-details/CustomerHistory';
@@ -51,8 +51,8 @@ export function LeadDetailSheet() {
   const [reminder, setReminder] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
   // What the call note dialog opens with, and the call it edits (if any).
-  const [callTarget, setCallTarget] = useState<{ initial: { by: Caller; outcome?: CallOutcome; notes?: string }; log?: CallLog }>({
-    initial: { by: 'store_manager' },
+  const [callTarget, setCallTarget] = useState<{ initial: { outcome?: CallOutcome; notes?: string }; log?: CallLog }>({
+    initial: {},
   });
   const [callLogged, setCallLogged] = useState<{ label: string; status?: LeadStatus } | null>(null);
 
@@ -74,7 +74,7 @@ export function LeadDetailSheet() {
     // The phone app takes over on a device; the call log is waiting on return.
     // The web preview has no dialer, so it goes straight to the call log.
     if (Platform.OS !== 'web') Linking.openURL(`tel:${dialableNumber(lead.number).replace(/\s/g, '')}`).catch(() => {});
-    setCallTarget({ initial: { by: 'store_manager' } });
+    setCallTarget({ initial: {} });
     setCallOpen(true);
   };
 
@@ -82,18 +82,18 @@ export function LeadDetailSheet() {
     const log = step.log;
     setCallTarget(
       log
-        ? { initial: { by: log.by, outcome: log.outcome, notes: log.notes }, log }
-        : { initial: { by: step.kind === 'ai' ? 'ai_bot' : 'store_manager' } },
+        ? { initial: { outcome: log.outcome, notes: log.notes }, log }
+        : { initial: {} },
     );
     setCallOpen(true);
   };
 
-  const logCall = ({ by, outcome, notes: callNotes }: CallNote) => {
+  const logCall = ({ outcome, notes: callNotes }: CallNote) => {
     if (!lead) return;
     const existing = callTarget.log;
     saveLeadCall(lead.id, {
       id: existing?.id ?? `call-${Date.now()}`,
-      by,
+      by: 'store_manager',
       outcome,
       notes: callNotes,
       when: existing?.when ?? 'Just now',
@@ -102,7 +102,8 @@ export function LeadDetailSheet() {
     const next = callOutcome(outcome).leadStatus;
     const changes = next && next !== status ? next : undefined;
     if (changes) setStatus(changes);
-    if (next === 'Set for reminder') setReminder(true);
+    // Asked to call later: remind the store manager tomorrow.
+    if (outcome === 'call_later') setReminder(true);
     setCallLogged({ label: callOutcome(outcome).label, status: changes });
     setCallOpen(false);
   };

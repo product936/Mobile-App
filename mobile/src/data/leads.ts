@@ -1,5 +1,7 @@
 export type LeadStatus =
   | 'Missed'
+  | 'Called by AI bot'
+  | 'Called by store manager'
   | 'Not contacted'
   | 'Set for reminder'
   | 'Contacted'
@@ -24,6 +26,8 @@ export type Lead = {
 export const LEAD_STATUS_FILTERS = [
   'All status',
   'Missed',
+  'Called by AI bot',
+  'Called by store manager',
   'Not contacted',
   'Set for reminder',
   'Contacted',
@@ -39,6 +43,8 @@ export type LeadSourceFilter = (typeof LEAD_SOURCE_FILTERS)[number];
 /** Statuses a store user can move a lead to from the lead details sheet. */
 export const EDITABLE_LEAD_STATUSES: LeadStatus[] = [
   'Missed',
+  'Called by AI bot',
+  'Called by store manager',
   'Not contacted',
   'Set for reminder',
   'Contacted',

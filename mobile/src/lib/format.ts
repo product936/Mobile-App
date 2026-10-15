@@ -39,6 +39,10 @@ export function leadStatusColor(status: LeadStatus): string {
   switch (status) {
     case 'Missed':
       return colors.error;
+    case 'Called by AI bot':
+      return colors.violet600;
+    case 'Called by store manager':
+      return colors.primaryDeep;
     case 'Not contacted':
       return colors.warning;
     case 'Set for reminder':
@@ -92,6 +96,10 @@ export function leadStatusTint(status: LeadStatus): { bg: string; fg: string } {
   switch (status) {
     case 'Missed':
       return { bg: colors.red100, fg: colors.error };
+    case 'Called by AI bot':
+      return { bg: colors.violet100, fg: colors.violet600 };
+    case 'Called by store manager':
+      return { bg: colors.indigo50, fg: colors.primaryDeep };
     case 'Not contacted':
       return { bg: colors.amber100, fg: colors.amber700 };
     case 'Set for reminder':

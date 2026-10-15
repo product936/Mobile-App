@@ -7,20 +7,16 @@ import { Chip } from '@/components/controls';
 import { Dialog } from '@/components/Dialog';
 import { FieldLabel, NotesField } from '@/components/fields';
 import { IconTile, layout } from '@/components/primitives';
-import { Select } from '@/components/Select';
 import { Text } from '@/components/Text';
-import { CALL_NOTES_MAX, CALL_OUTCOMES, CALLERS, type Caller, type CallOutcome } from '@/lib/calls';
+import { CALL_NOTES_MAX, CALL_OUTCOMES, type CallOutcome } from '@/lib/calls';
 import { colors, radius, shadows, type } from '@/theme/tokens';
 
-export type CallNote = { by: Caller; outcome: CallOutcome; notes: string };
-
-const CALLER_OPTIONS = CALLERS.map((c) => ({ value: c.id, label: c.label }));
+export type CallNote = { outcome: CallOutcome; notes: string };
 
 /**
- * A note against a call back: its status (called by the AI bot or by the
- * store manager), the outcome, and free-text notes on what happened. Opens from "Call back"
- * and from "Add note" in Customer history. Closing or tapping outside saves
- * nothing.
+ * A note against the store manager's call back: the call outcome and
+ * free-text notes on what happened. Opens from "Call back" and from the call
+ * steps in Customer history. Closing or tapping outside saves nothing.
  */
 export function CallOutcomeDialog({
   visible,
@@ -32,20 +28,16 @@ export function CallOutcomeDialog({
   visible: boolean;
   /** Number shown to the user, e.g. "98551 35120". */
   number: string;
-  /** Prefills the fields: who called, and an existing note when editing one. */
-  initial: { by: Caller; outcome?: CallOutcome; notes?: string };
+  /** Prefills an existing note when viewing one. */
+  initial: { outcome?: CallOutcome; notes?: string };
   onDismiss: () => void;
   onSave: (note: CallNote) => void;
 }) {
-  const [by, setBy] = useState<Caller>(initial.by);
-  const [byOpen, setByOpen] = useState(false);
   const [outcome, setOutcome] = useState<CallOutcome | null>(null);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (!visible) return;
-    setBy(initial.by);
-    setByOpen(false);
     setOutcome(initial.outcome ?? null);
     setNotes(initial.notes ?? '');
   }, [visible]); // Prefill only when the dialog opens.
@@ -70,20 +62,7 @@ export function CallOutcomeDialog({
       </View>
 
       <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <FieldLabel>Call status</FieldLabel>
-        <Select
-          label="Call status"
-          value={by}
-          options={CALLER_OPTIONS}
-          open={byOpen}
-          onToggle={() => setByOpen((o) => !o)}
-          onChange={(v) => {
-            setBy(v);
-            setByOpen(false);
-          }}
-        />
-
-        <View style={{ marginTop: 18 }}>
+        <View>
           <FieldLabel>Call outcome</FieldLabel>
           <View style={styles.outcomes} accessibilityRole="radiogroup" accessibilityLabel="Call outcome">
             {CALL_OUTCOMES.map((o) => (
@@ -111,7 +90,7 @@ export function CallOutcomeDialog({
       <Button
         label="Save call note"
         disabled={!outcome}
-        onPress={() => outcome && onSave({ by, outcome, notes: notes.trim() })}
+        onPress={() => outcome && onSave({ outcome, notes: notes.trim() })}
         style={{ marginTop: 14 }}
       />
       {!outcome ? (

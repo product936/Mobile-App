@@ -18,12 +18,11 @@ const managerCall: CallLog = {
 };
 
 describe('call outcome', () => {
-  it('moves the lead only for outcomes that say where it stands', () => {
-    expect(callOutcome('connected').leadStatus).toBe('Contacted');
-    expect(callOutcome('call_later').leadStatus).toBe('Set for reminder');
+  it('marks the lead as called by the store manager, or expired for a wrong number', () => {
+    for (const id of ['connected', 'no_answer', 'busy', 'call_later'] as const) {
+      expect(callOutcome(id).leadStatus).toBe('Called by store manager');
+    }
     expect(callOutcome('wrong_number').leadStatus).toBe('Expired');
-    expect(callOutcome('no_answer').leadStatus).toBeUndefined();
-    expect(callOutcome('busy').leadStatus).toBeUndefined();
   });
 
   it('adds minutes across the hour and noon', () => {
@@ -92,34 +91,25 @@ describe('Customer history', () => {
 });
 
 describe('Call note dialog', () => {
-  it('needs a call outcome before saving, and saves the call status and notes', async () => {
+  it('asks for the outcome and notes only, and needs an outcome before saving', async () => {
     const onSave = jest.fn();
-    await render(
-      <CallOutcomeDialog visible number="98551 35120" initial={{ by: 'store_manager' }} onDismiss={jest.fn()} onSave={onSave} />,
-    );
+    await render(<CallOutcomeDialog visible number="98551 35120" initial={{}} onDismiss={jest.fn()} onSave={onSave} />);
     expect(screen.getByText('What happened on the call?')).toBeTruthy();
-    expect(screen.getByText('Called by store manager')).toBeTruthy();
+    expect(screen.queryByText('Call status')).toBeNull();
+    expect(screen.queryByText('Called by AI bot')).toBeNull();
 
     await fireEvent.press(screen.getByText('Save call note'));
     expect(onSave).not.toHaveBeenCalled();
 
-    await fireEvent.press(screen.getByLabelText('Call status, Called by store manager'));
-    await fireEvent.press(screen.getByText('Called by AI bot'));
     await fireEvent.press(screen.getByText('Connected'));
     await fireEvent.changeText(screen.getByLabelText('Call notes, optional'), '  Interested in Tata Ace ');
     await fireEvent.press(screen.getByText('Save call note'));
-    expect(onSave).toHaveBeenCalledWith({ by: 'ai_bot', outcome: 'connected', notes: 'Interested in Tata Ace' });
+    expect(onSave).toHaveBeenCalledWith({ outcome: 'connected', notes: 'Interested in Tata Ace' });
   });
 
-  it('prefills an existing note for editing', async () => {
+  it('prefills a saved note when viewing it', async () => {
     await render(
-      <CallOutcomeDialog
-        visible
-        number="98551 35120"
-        initial={{ by: 'store_manager', outcome: 'busy', notes: 'Try after 6' }}
-        onDismiss={jest.fn()}
-        onSave={jest.fn()}
-      />,
+      <CallOutcomeDialog visible number="98551 35120" initial={{ outcome: 'busy', notes: 'Try after 6' }} onDismiss={jest.fn()} onSave={jest.fn()} />,
     );
     expect(screen.getByDisplayValue('Try after 6')).toBeTruthy();
     expect(screen.getByText('11/500')).toBeTruthy();
@@ -128,7 +118,7 @@ describe('Call note dialog', () => {
   it('closing saves nothing', async () => {
     const onSave = jest.fn();
     const onDismiss = jest.fn();
-    await render(<CallOutcomeDialog visible number="98551 35120" initial={{ by: 'store_manager' }} onDismiss={onDismiss} onSave={onSave} />);
+    await render(<CallOutcomeDialog visible number="98551 35120" initial={{}} onDismiss={onDismiss} onSave={onSave} />);
     await act(async () => fireEvent.press(screen.getByLabelText('Close')));
     expect(onDismiss).toHaveBeenCalled();
     expect(onSave).not.toHaveBeenCalled();
