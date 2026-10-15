@@ -95,10 +95,26 @@ describe('lead journey', () => {
   });
 });
 
+async function renderHistory(steps: ReturnType<typeof leadJourney>, onAddNote = jest.fn()) {
+  await render(<CustomerHistory steps={steps} onAddNote={onAddNote} />);
+  await fireEvent.press(screen.getByLabelText(/^Customer history, /));
+  return onAddNote;
+}
+
 describe('Customer history', () => {
+  it('works as an accordion: closed with the interaction count, open on tap, closed again on a second tap', async () => {
+    await render(<CustomerHistory steps={leadJourney(missedLead, [])} onAddNote={jest.fn()} />);
+    const header = screen.getByLabelText('Customer history, 2 interactions');
+    expect(screen.queryByText('Called back by AI bot')).toBeNull();
+    await fireEvent.press(header);
+    expect(screen.getByText('Called back by AI bot')).toBeTruthy();
+    expect(screen.getByText('2 interactions, newest first')).toBeTruthy();
+    await fireEvent.press(header);
+    expect(screen.queryByText('Called back by AI bot')).toBeNull();
+  });
+
   it('shows times on the right, View note for calls with a note, and no note action on the AI bot call', async () => {
-    const onAddNote = jest.fn();
-    await render(<CustomerHistory steps={leadJourney(missedLead, [managerCall])} onAddNote={onAddNote} />);
+    const onAddNote = await renderHistory(leadJourney(missedLead, [managerCall]));
     expect(screen.getByText('Just now')).toBeTruthy();
     expect(screen.getByText('5:42 PM')).toBeTruthy();
     expect(screen.getByText('5:39 PM')).toBeTruthy();
@@ -112,15 +128,14 @@ describe('Customer history', () => {
   });
 
   it('shows a quiet progress state while the AI call recording is on its way', async () => {
-    await render(<CustomerHistory steps={leadJourney(missedLead, [])} onAddNote={jest.fn()} />);
+    await renderHistory(leadJourney(missedLead, []));
     expect(screen.getByText('Getting the call recording')).toBeTruthy();
     expect(screen.getByText("It'll be ready to play within 5 minutes.")).toBeTruthy();
     expect(screen.queryByLabelText('Play recording')).toBeNull();
   });
 
   it('prompts the store manager to add a call note until a call is logged', async () => {
-    const onAddNote = jest.fn();
-    await render(<CustomerHistory steps={leadJourney(missedLead, [])} onAddNote={onAddNote} />);
+    const onAddNote = await renderHistory(leadJourney(missedLead, []));
     await fireEvent.press(screen.getByLabelText('Add call note: Call back by store manager'));
     expect(onAddNote.mock.calls[0][0].kind).toBe('pending');
   });

@@ -259,14 +259,6 @@ export function LeadDetailSheet() {
           <SheetFooter divider={false} style={styles.stickyBar}>
             <View style={[layout.row, { gap: 10 }]}>
               <Button
-                label="Call back"
-                height={48}
-                fontSize={type.subhead}
-                style={layout.flex1}
-                iconLeft={<Phone size={16} color={colors.white} strokeWidth={2} />}
-                onPress={callBack}
-              />
-              <Button
                 label="Request review"
                 variant="outlineAccent"
                 height={48}
@@ -277,6 +269,14 @@ export function LeadDetailSheet() {
                   closeSheet({ askFeedback: false });
                   openAddLead('review');
                 }}
+              />
+              <Button
+                label="Call back"
+                height={48}
+                fontSize={type.subhead}
+                style={layout.flex1}
+                iconLeft={<Phone size={16} color={colors.white} strokeWidth={2} />}
+                onPress={callBack}
               />
             </View>
           </SheetFooter>

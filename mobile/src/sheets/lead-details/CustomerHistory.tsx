@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import {
   BadgeCheck,
   Bot,
+  ChevronDown,
   FileText,
   Pause,
   PhoneCall,
@@ -38,23 +39,50 @@ const TONE: Record<OutcomeTone, { bg: string; border: string; fg: string }> = {
 };
 
 /**
- * The lead's journey, newest first, with each step's time on the right.
+ * The lead's journey as an accordion: closed, it shows the number of
+ * interactions; open, the journey newest first, with each step's time on the right.
  * Logged calls open their note with "View note"; a known outcome shows as a
  * chip by the title. The AI bot's call back is read-only: its recording, or a
  * quiet progress state while the recording is on its way.
  */
 export function CustomerHistory({ steps, onAddNote }: { steps: JourneyStep[]; onAddNote: (step: JourneyStep) => void }) {
+  // An accordion: collapsed to its header and interaction count until opened.
+  const [open, setOpen] = useState(false);
+  const reduced = useReducedMotion();
+  const turn = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(turn, {
+      toValue: open ? 1 : 0,
+      duration: reduced ? 0 : motion.fast,
+      easing: motion.easeOut,
+      useNativeDriver: true,
+    }).start();
+  }, [open, reduced, turn]);
+  const count = steps.filter((s) => s.kind !== 'pending').length;
+
   return (
-    <View style={{ marginTop: 26 }}>
-      <View style={styles.titleRow}>
-        <Text size={type.subhead} weight={600} color={colors.textSecondary} accessibilityRole="header">
-          Customer history
-        </Text>
-        <Text size={type.footnote} color={colors.textTertiary}>
-          Newest first
-        </Text>
-      </View>
-      {steps.map((step, i) => {
+    <View style={styles.section}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Customer history, ${count} ${count === 1 ? 'interaction' : 'interactions'}`}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen((o) => !o)}
+        style={styles.header}
+      >
+        <View style={layout.flex1}>
+          <Text size={type.subhead} weight={600} color={colors.textSecondary} accessibilityRole="header">
+            Customer history
+          </Text>
+          <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 1 }}>
+            {count} {count === 1 ? 'interaction' : 'interactions'}
+            {open ? ', newest first' : ''}
+          </Text>
+        </View>
+        <Animated.View style={{ transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+          <ChevronDown size={18} color={colors.textTertiary} strokeWidth={2.2} />
+        </Animated.View>
+      </Pressable>
+      {open ? <View style={styles.list}>{steps.map((step, i) => {
         const k = KIND[step.kind];
         const last = i === steps.length - 1;
         const pending = step.kind === 'pending';
@@ -122,7 +150,7 @@ export function CustomerHistory({ steps, onAddNote }: { steps: JourneyStep[]; on
             </View>
           </View>
         );
-      })}
+      })}</View> : null}
     </View>
   );
 }
@@ -210,7 +238,16 @@ function Recording({ duration }: { duration: number }) {
 }
 
 const styles = StyleSheet.create({
-  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 },
+  section: {
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    borderRadius: radius.card,
+    backgroundColor: colors.surfaceElevated,
+    overflow: 'hidden',
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16 },
+  list: { paddingTop: 14, paddingHorizontal: 14, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
   rail: { width: 32, alignItems: 'center' },
   icon: { width: 32, height: 32, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   iconPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.borderDefault },
