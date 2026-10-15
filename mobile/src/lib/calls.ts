@@ -86,16 +86,14 @@ const FIRST_STEP: Record<Lead['source'], Pick<JourneyStep, 'kind' | 'title'> & {
 };
 
 /**
- * The lead's journey, oldest first: how the customer first reached the store,
- * the AI bot's call back (which also qualifies their purchase intent), then
- * the store manager's call backs. Until the store manager has logged a call,
- * the last step is a prompt to call and add a note.
+ * The lead's journey, newest first: the next step (a prompt for the store
+ * manager to call, until they have logged one), logged call backs, the AI
+ * bot's call back (which also qualifies the purchase intent), and how the
+ * customer first reached the store.
  */
 export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
   const first = FIRST_STEP[lead.source];
-  const aiLog = logs.filter((l) => l.by === 'ai_bot').pop();
-  const managerLogs = logs.filter((l) => l.by === 'store_manager');
-
+  // Built oldest first, then reversed.
   const steps: JourneyStep[] = [
     { id: 'first', kind: first.kind, title: first.title, meta: `${first.channel} · Today, ${lead.time}` },
     {
@@ -105,13 +103,19 @@ export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
       meta: `AI call · Today, ${addMinutes(lead.time, 3)}`,
       intent: qualifiedIntent(lead),
       recordingSeconds: 32,
-      log: aiLog,
     },
   ];
-  for (const log of managerLogs) {
-    steps.push({ id: log.id, kind: 'manager', title: 'Called back by store manager', meta: `Call · ${log.when} · ${log.author}`, log });
+  for (const log of logs) {
+    const manager = log.by === 'store_manager';
+    steps.push({
+      id: log.id,
+      kind: manager ? 'manager' : 'ai',
+      title: manager ? 'Called back by store manager' : 'Called back by AI bot',
+      meta: `Call · ${log.when} · ${log.author}`,
+      log,
+    });
   }
-  if (!managerLogs.length) {
+  if (!logs.some((l) => l.by === 'store_manager')) {
     steps.push({
       id: 'pending',
       kind: 'pending',
@@ -119,5 +123,5 @@ export function leadJourney(lead: Lead, logs: CallLog[]): JourneyStep[] {
       meta: 'Next step: call the customer, then add a note about the call.',
     });
   }
-  return steps;
+  return steps.reverse();
 }

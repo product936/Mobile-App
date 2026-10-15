@@ -41,42 +41,53 @@ describe('call outcome', () => {
 });
 
 describe('lead journey', () => {
-  it('runs missed call, AI bot call back with qualified intent, then a prompt for the store manager', () => {
+  it('is newest first: store manager prompt, AI bot call back with qualified intent, then the missed call', () => {
     const steps = leadJourney(missedLead, []);
-    expect(steps.map((s) => s.kind)).toEqual(['missed', 'ai', 'pending']);
-    expect(steps[0].meta).toBe('Call · Today, 5:39 PM');
+    expect(steps.map((s) => s.kind)).toEqual(['pending', 'ai', 'missed']);
+    expect(steps[0].title).toBe('Call back by store manager');
     expect(steps[1].title).toBe('Called back by AI bot');
     expect(steps[1].meta).toBe('AI call · Today, 5:42 PM');
     expect(steps[1].intent).toBeTruthy();
-    expect(steps[2].title).toBe('Call back by store manager');
+    expect(steps[1].log).toBeUndefined();
+    expect(steps[2].meta).toBe('Call · Today, 5:39 PM');
   });
 
-  it("replaces the prompt with the store manager's logged calls, and attaches AI bot notes to the AI call", () => {
-    const aiNote: CallLog = { ...managerCall, id: 'c0', by: 'ai_bot', notes: 'Asked for Ace pricing' };
-    const steps = leadJourney(missedLead, [aiNote, managerCall]);
-    expect(steps.map((s) => s.kind)).toEqual(['missed', 'ai', 'manager']);
-    expect(steps[1].log?.notes).toBe('Asked for Ace pricing');
-    expect(steps[2].meta).toBe('Call · Just now · Tarun Sobhani');
+  it("replaces the prompt with the store manager's logged calls, newest on top", () => {
+    const later: CallLog = { ...managerCall, id: 'c2', outcome: 'busy', notes: '' };
+    const steps = leadJourney(missedLead, [managerCall, later]);
+    expect(steps.map((s) => s.id)).toEqual(['c2', 'c1', 'ai', 'first']);
+    expect(steps[1].meta).toBe('Call · Just now · Tarun Sobhani');
   });
 
   it('starts from how the customer first reached the store', () => {
-    expect(leadJourney(formLead, [])[0].title).toBe('Filled an enquiry form');
+    const steps = leadJourney(formLead, []);
+    expect(steps[steps.length - 1].title).toBe('Filled an enquiry form');
   });
 });
 
 describe('Customer history', () => {
-  it('shows each step and opens the note dialog for the right call', async () => {
+  it('shows the outcome next to the call, View note once a note exists, and no note action on the AI bot call', async () => {
     const onAddNote = jest.fn();
-    await render(<CustomerHistory steps={leadJourney(missedLead, [managerCall])} onAddNote={onAddNote} />);
-    expect(screen.getByText('Missed call from the customer')).toBeTruthy();
-    expect(screen.getByText('Called back by AI bot')).toBeTruthy();
-    expect(screen.getByText('Called back by store manager')).toBeTruthy();
-    expect(screen.getByText('Wants a test drive on Saturday')).toBeTruthy();
+    const noNote: CallLog = { ...managerCall, id: 'c2', outcome: 'busy', notes: '' };
+    await render(<CustomerHistory steps={leadJourney(missedLead, [managerCall, noNote])} onAddNote={onAddNote} />);
+    expect(screen.getByText('Newest first')).toBeTruthy();
+    expect(screen.getByLabelText('Call outcome: Connected')).toBeTruthy();
+    expect(screen.getByLabelText('Call outcome: Busy')).toBeTruthy();
+    // Notes open from "View note" rather than showing inline.
+    expect(screen.queryByText('Wants a test drive on Saturday')).toBeNull();
+    expect(screen.getAllByLabelText('View note: Called back by store manager')).toHaveLength(1);
+    expect(screen.getAllByLabelText('Add note: Called back by store manager')).toHaveLength(1);
+    expect(screen.queryByLabelText(/: Called back by AI bot$/)).toBeNull();
 
-    await fireEvent.press(screen.getByLabelText('Add note: Called back by AI bot'));
-    expect(onAddNote.mock.calls[0][0].kind).toBe('ai');
-    await fireEvent.press(screen.getByLabelText('Edit note: Called back by store manager'));
-    expect(onAddNote.mock.calls[1][0].log.id).toBe('c1');
+    await fireEvent.press(screen.getByLabelText('View note: Called back by store manager'));
+    expect(onAddNote.mock.calls[0][0].log.id).toBe('c1');
+  });
+
+  it('prompts the store manager to add a call note until a call is logged', async () => {
+    const onAddNote = jest.fn();
+    await render(<CustomerHistory steps={leadJourney(missedLead, [])} onAddNote={onAddNote} />);
+    await fireEvent.press(screen.getByLabelText('Add call note: Call back by store manager'));
+    expect(onAddNote.mock.calls[0][0].kind).toBe('pending');
   });
 });
 
