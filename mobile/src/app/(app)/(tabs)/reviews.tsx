@@ -11,10 +11,16 @@ import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
 import { AVATAR_COLORS, REVIEW_AVG_RATING, REVIEWS, type Review } from '@/data/content';
 import { filterReviews } from '@/lib/reviews';
-import { useAppStore } from '@/state/store';
+import { ReviewsLocked } from '@/screens/ReviewsLocked';
+import { useAppStore, useCanUse } from '@/state/store';
 import { colors, radius, type } from '@/theme/tokens';
 
 export default function ReviewsScreen() {
+  // Accounts without access to Reviews keep the tab, and see how to ask for it.
+  return useCanUse('reviews') ? <ReviewsContent /> : <ReviewsLocked />;
+}
+
+function ReviewsContent() {
   const filters = useAppStore((s) => s.reviewFilters);
   const deletedReplies = useAppStore((s) => s.deletedReplies);
   const openSheet = useAppStore((s) => s.openSheet);

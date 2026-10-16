@@ -1,61 +1,233 @@
-import { Pressable, StyleSheet, View } from 'react-native';
-import { FileText, MessageSquare, Pause, Phone, Play, ShoppingBag, type LucideIcon } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import {
+  BadgeCheck,
+  Bot,
+  ChevronDown,
+  History,
+  FileText,
+  Pause,
+  PhoneCall,
+  PhoneMissed,
+  PhoneOutgoing,
+  Play,
+  Store,
+  type LucideIcon,
+} from 'lucide-react-native';
 
 import { PressableScale } from '@/components/PressableScale';
 import { layout } from '@/components/primitives';
 import { Text } from '@/components/Text';
-import { CUSTOMER_HISTORY, type CustomerEvent } from '@/data/content';
+import { callOutcome, type JourneyStep, type OutcomeTone } from '@/lib/calls';
 import { usePlayback } from '@/lib/usePlayback';
-import { colors, radius, type } from '@/theme/tokens';
+import { useReducedMotion } from '@/lib/useReducedMotion';
+import { colors, motion, radius, shadows, type } from '@/theme/tokens';
 
-const KIND: Record<CustomerEvent['kind'], { Icon: LucideIcon; bg: string; fg: string; size: number }> = {
-  purchase: { Icon: ShoppingBag, bg: colors.amber100, fg: colors.amber700, size: 16 },
-  call: { Icon: Phone, bg: colors.blue50, fg: colors.primaryAccent, size: 15 },
-  chat: { Icon: MessageSquare, bg: colors.successBg, fg: colors.success, size: 15 },
-  form: { Icon: FileText, bg: '#EEF0FF', fg: colors.primaryDeep, size: 15 },
+const KIND: Record<JourneyStep['kind'], { Icon: LucideIcon; bg: string; fg: string }> = {
+  missed: { Icon: PhoneMissed, bg: colors.red100, fg: colors.error },
+  form: { Icon: FileText, bg: colors.indigo50, fg: colors.primaryDeep },
+  walkin: { Icon: Store, bg: colors.amber100, fg: colors.amber700 },
+  ai: { Icon: Bot, bg: colors.violet100, fg: colors.violet600 },
+  manager: { Icon: PhoneCall, bg: colors.blue50, fg: colors.primaryAccent },
+  pending: { Icon: PhoneOutgoing, bg: colors.surfaceElevated, fg: colors.textTertiary },
 };
 
-/** Timeline of the customer's past interactions with the store, newest first. */
-export function CustomerHistory({ events = CUSTOMER_HISTORY }: { events?: CustomerEvent[] }) {
+const TONE: Record<OutcomeTone, { bg: string; border: string; fg: string }> = {
+  blue: { bg: colors.blue50, border: colors.infoBorder, fg: colors.primaryAccent },
+  green: { bg: colors.successBg, border: colors.successBorder, fg: colors.success },
+  red: { bg: colors.errorBg, border: colors.errorBorder, fg: colors.error },
+  amber: { bg: colors.warningBg, border: colors.warningBorder, fg: colors.amber700 },
+};
+
+/**
+ * The lead's journey as an accordion: closed, it shows the number of
+ * interactions; open, the journey newest first, with each step's time on the right.
+ * Logged calls open their note with "View note"; a known outcome shows as a
+ * chip by the title. The AI bot's call back is read-only: its recording, or a
+ * quiet progress state while the recording is on its way.
+ */
+export function CustomerHistory({ steps, onAddNote }: { steps: JourneyStep[]; onAddNote: (step: JourneyStep) => void }) {
+  // An accordion: collapsed to its header and interaction count until opened.
+  const [open, setOpen] = useState(false);
+  const reduced = useReducedMotion();
+  const turn = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(turn, {
+      toValue: open ? 1 : 0,
+      duration: reduced ? 0 : motion.fast,
+      easing: motion.easeOut,
+      useNativeDriver: true,
+    }).start();
+  }, [open, reduced, turn]);
+  const count = steps.filter((s) => s.kind !== 'pending').length;
+  const latest = steps.find((s) => s.kind !== 'pending');
+  const countLabel = `${count} ${count === 1 ? 'interaction' : 'interactions'}`;
+
   return (
-    <View style={{ marginTop: 26 }}>
-      <Text size={type.subhead} weight={600} color={colors.textSecondary} style={{ marginBottom: 14 }} accessibilityRole="header">
-        Customer history
-      </Text>
-      {events.map((e, i) => {
-        const k = KIND[e.kind];
-        const last = i === events.length - 1;
+    <View style={[styles.section, !open && styles.sectionClosed]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Customer history, ${countLabel}`}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen((o) => !o)}
+        style={styles.header}
+      >
+        <View style={[styles.headerIcon, !open && { backgroundColor: colors.white }]}>
+          <History size={18} color={colors.primaryAccent} strokeWidth={2.2} />
+        </View>
+        <View style={layout.flex1}>
+          <View style={[layout.row, { gap: 8 }]}>
+            <Text size={type.headline} weight={700} color={colors.textPrimary} accessibilityRole="header">
+              Customer history
+            </Text>
+            <View style={styles.countPill}>
+              <Text size={type.caption} weight={700} color={colors.primaryAccent} lineHeight={1.2}>
+                {count}
+              </Text>
+            </View>
+          </View>
+          <Text size={type.footnote} color={colors.textSecondary} numberOfLines={1} style={{ marginTop: 2 }}>
+            {open
+              ? `${countLabel}, newest first`
+              : latest
+                ? `Latest: ${latest.title}${latest.time ? ` · ${latest.time}` : ''}`
+                : countLabel}
+          </Text>
+        </View>
+        <Animated.View
+          style={[
+            styles.chevron,
+            { transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] },
+          ]}
+        >
+          <ChevronDown size={18} color={colors.primaryAccent} strokeWidth={2.4} />
+        </Animated.View>
+      </Pressable>
+      {open ? <View style={styles.list}>{steps.map((step, i) => {
+        const k = KIND[step.kind];
+        const last = i === steps.length - 1;
+        const pending = step.kind === 'pending';
+        const note = step.log?.notes;
+        const action = pending ? 'Add call note' : step.log ? (note ? 'View note' : 'Add note') : null;
         return (
-          <View key={e.id} style={[layout.row, { alignItems: 'stretch', gap: 12 }]}>
+          <View key={step.id} style={[layout.row, { alignItems: 'stretch', gap: 12 }]}>
             <View style={styles.rail}>
-              <View style={[styles.icon, { backgroundColor: k.bg }]}>
-                <k.Icon size={k.size} color={k.fg} strokeWidth={2} />
+              <View style={[styles.icon, { backgroundColor: k.bg }, pending && styles.iconPending]}>
+                <k.Icon size={15} color={k.fg} strokeWidth={2} />
               </View>
               {!last ? <View style={styles.line} /> : null}
             </View>
-            <View style={[layout.flex1, !last && { paddingBottom: 20 }]}>
-              <Text size={type.callout} color={colors.textPrimary}>
-                {e.parts.map((p, j) => (
-                  <Text key={j} size={type.callout} weight={p.bold ? 700 : 400} color={colors.textPrimary}>
-                    {p.text}
+            <View style={[layout.flex1, styles.body, !last && { paddingBottom: 20 }]}>
+              <View style={styles.titleRow2}>
+                <View style={[styles.titleLine, layout.flex1]}>
+                  <Text size={type.callout} weight={600} color={pending ? colors.textSecondary : colors.textPrimary}>
+                    {step.title}
                   </Text>
-                ))}
-              </Text>
-              <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 2 }}>
-                {e.meta}
-              </Text>
-              {e.recordingSeconds ? <Recording duration={e.recordingSeconds} /> : null}
-              {e.action ? (
-                <PressableScale pressedScale={0.96} accessibilityLabel={e.action} style={styles.action}>
+                  {step.log?.outcome ? <OutcomeChip outcome={step.log.outcome} /> : null}
+                </View>
+                {step.time ? (
+                  <Text size={type.footnote} color={colors.textTertiary} style={styles.time}>
+                    {step.time}
+                  </Text>
+                ) : null}
+              </View>
+              {step.meta ? (
+                <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 2 }}>
+                  {step.meta}
+                </Text>
+              ) : null}
+
+              {step.intent ? (
+                <View style={styles.tags}>
+                  {step.intent ? (
+                    <View style={[styles.tag, styles.tagIntent]}>
+                      <BadgeCheck size={13} color={colors.success} strokeWidth={2.2} />
+                      <Text size={type.footnote} weight={600} color={colors.textSecondary} lineHeight={1.2}>
+                        Intent qualified:{' '}
+                        <Text size={type.footnote} weight={700} color={colors.textPrimary} lineHeight={1.2}>
+                          {step.intent}
+                        </Text>
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {step.recordingSeconds ? <Recording duration={step.recordingSeconds} /> : null}
+              {step.recordingPending ? <RecordingOnItsWay /> : null}
+
+              {action ? (
+                <PressableScale
+                  pressedScale={0.96}
+                  accessibilityLabel={`${action}: ${step.title}`}
+                  onPress={() => onAddNote(step)}
+                  style={styles.action}
+                >
                   <Text size={type.footnote} weight={700} color={colors.primaryAccent} lineHeight={1.2}>
-                    {e.action}
+                    {action}
                   </Text>
                 </PressableScale>
               ) : null}
             </View>
           </View>
         );
-      })}
+      })}</View> : null}
+    </View>
+  );
+}
+
+function OutcomeChip({ outcome }: { outcome: Parameters<typeof callOutcome>[0] }) {
+  const o = callOutcome(outcome);
+  const t = TONE[o.tone];
+  return (
+    <View style={[styles.outcome, { backgroundColor: t.bg, borderColor: t.border }]} accessibilityLabel={`Call outcome: ${o.label}`}>
+      <Text size={type.caption} weight={700} color={t.fg} lineHeight={1.2}>
+        {o.label}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * Not interactive: tells the user the AI bot's call recording is being
+ * fetched, with a slow sweep on a thin bar (a still bar with reduced motion).
+ */
+function RecordingOnItsWay() {
+  const reduced = useReducedMotion();
+  const sweep = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reduced) return;
+    const loop = Animated.loop(
+      Animated.timing(sweep, { toValue: 1, duration: 1600, easing: motion.easeOut, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, sweep]);
+
+  return (
+    <View
+      style={styles.pendingBox}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Getting the call recording. It will be ready within 5 minutes."
+    >
+      <Text size={type.footnote} weight={600} color={colors.textSecondary}>
+        Getting the call recording
+      </Text>
+      <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 1 }}>
+        It'll be ready to play within 5 minutes.
+      </Text>
+      <View style={styles.pendingTrack}>
+        <Animated.View
+          style={[
+            styles.pendingFill,
+            reduced
+              ? { width: '35%' }
+              : { transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-90, 260] }) }] },
+          ]}
+        />
+      </View>
     </View>
   );
 }
@@ -87,8 +259,90 @@ function Recording({ duration }: { duration: number }) {
 }
 
 const styles = StyleSheet.create({
+  section: {
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    borderRadius: radius.card,
+    backgroundColor: colors.surfaceElevated,
+    overflow: 'hidden',
+  },
+  // Closed, the card is tinted and lifted so it reads as something to open.
+  sectionClosed: { backgroundColor: colors.unreadTint, borderColor: colors.infoBorder, boxShadow: shadows.sm },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 14 },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.lg,
+    backgroundColor: colors.blue50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countPill: {
+    minWidth: 22,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.blue50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chevron: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.infoBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  list: { paddingTop: 14, paddingHorizontal: 14, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.borderSubtle },
   rail: { width: 32, alignItems: 'center' },
   icon: { width: 32, height: 32, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  iconPending: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.borderDefault },
+  // As tall as the icon, with the title centred on it.
+  body: { minHeight: 32, paddingTop: 5 },
+  titleRow2: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  time: { paddingTop: 2 },
+  pendingBox: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.input,
+    backgroundColor: colors.surfaceBase,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  pendingTrack: {
+    height: 3,
+    marginTop: 8,
+    borderRadius: radius.full,
+    backgroundColor: colors.borderDefault,
+    overflow: 'hidden',
+  },
+  pendingFill: { width: 90, height: '100%', borderRadius: radius.full, backgroundColor: colors.violet600, opacity: 0.6 },
+  titleLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 4 },
+  outcome: {
+    height: 22,
+    paddingHorizontal: 8,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    justifyContent: 'center',
+  },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 26,
+    paddingHorizontal: 10,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceBase,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+  },
+  tagIntent: { backgroundColor: colors.successBg, borderColor: colors.successBorder },
   line: { flex: 1, width: 2, backgroundColor: colors.borderDefault, marginVertical: 4 },
   action: {
     alignSelf: 'flex-start',

@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 
 import { ROLE_CONFIGS, type Role, type RoleConfig } from '@/config/roles';
-import { SEED_NOTE_VERSIONS, type DateRange } from '@/data/content';
+import { SEED_LEAD_CALLS, SEED_NOTE_VERSIONS, type DateRange } from '@/data/content';
 import { LEADS, type Lead, type LeadSourceFilter, type LeadStatusFilter } from '@/data/leads';
 import { EMPTY_SELECTION, toggleSelection, type LocationSelection } from '@/lib/format';
+import { upsertCallLog, type CallLog } from '@/lib/calls';
 import type { LeadNotes } from '@/lib/notes';
+import { FULL_ACCESS, type Access } from '@/services/auth';
 import type { FeedbackContext } from '@/services/feedback';
 import type { FilterLevel } from '@/data/locations';
 
@@ -39,7 +41,12 @@ type AppState = {
   phone: string;
   role: Role | null;
   setPhone: (phone: string) => void;
-  signIn: (role: Role) => void;
+  signIn: (role: Role, access?: Access) => void;
+  /** What the signed-in account can open. */
+  access: Access;
+  /** Features this user has asked their admin to turn on. */
+  accessRequested: (keyof Access)[];
+  markAccessRequested: (feature: keyof Access) => void;
   signOut: () => void;
 
   // Shared filters
@@ -83,6 +90,9 @@ type AppState = {
   /** Versioned notes per lead; leads without saved notes show the seeded sample history. */
   leadNotes: Record<string, LeadNotes>;
   setLeadNotes: (id: string, notes: LeadNotes) => void;
+  /** Call backs logged against each lead, with what happened on them. */
+  leadCalls: Record<string, CallLog[]>;
+  saveLeadCall: (id: string, log: CallLog) => void;
   deletedReplies: string[];
   deleteReply: (id: string) => void;
   readNotifications: string[];
@@ -112,15 +122,22 @@ export const useAppStore = create<AppState>((set) => ({
   phone: '',
   role: null,
   setPhone: (phone) => set({ phone }),
-  signIn: (role) => set({ role }),
+  signIn: (role, access = FULL_ACCESS) => set({ role, access }),
+  access: FULL_ACCESS,
+  accessRequested: [],
+  markAccessRequested: (feature) =>
+    set((s) => (s.accessRequested.includes(feature) ? s : { accessRequested: [...s.accessRequested, feature] })),
   signOut: () =>
     set({
       role: null,
+      access: FULL_ACCESS,
+      accessRequested: [],
       phone: '',
       ...initialFilters,
       ...initialOverlays,
       leadEdits: {},
       leadNotes: {},
+      leadCalls: SEED_LEAD_CALLS,
       deletedReplies: [],
       readNotifications: [],
     }),
@@ -155,6 +172,8 @@ export const useAppStore = create<AppState>((set) => ({
   saveLeadEdits: (id, edits) => set((s) => ({ leadEdits: { ...s.leadEdits, [id]: { ...s.leadEdits[id], ...edits } } })),
   leadNotes: {},
   setLeadNotes: (id, notes) => set((s) => ({ leadNotes: { ...s.leadNotes, [id]: notes } })),
+  leadCalls: SEED_LEAD_CALLS,
+  saveLeadCall: (id, log) => set((s) => ({ leadCalls: { ...s.leadCalls, [id]: upsertCallLog(s.leadCalls[id] ?? [], log) } })),
   deletedReplies: [],
   deleteReply: (id) => set((s) => ({ deletedReplies: [...s.deletedReplies, id] })),
   readNotifications: [],
@@ -184,4 +203,16 @@ const SEEDED_NOTES: LeadNotes = { versions: SEED_NOTE_VERSIONS, active: true };
 /** A lead's notes, falling back to the seeded sample history. */
 export function useLeadNotes(id: string | null): LeadNotes {
   return useAppStore((s) => (id ? (s.leadNotes[id] ?? SEEDED_NOTES) : SEEDED_NOTES));
+}
+
+const NO_CALLS: CallLog[] = [];
+
+/** Call backs logged against a lead, oldest first. */
+export function useLeadCalls(id: string | null): CallLog[] {
+  return useAppStore((s) => (id ? (s.leadCalls[id] ?? NO_CALLS) : NO_CALLS));
+}
+
+/** Whether the signed-in account can open a feature. */
+export function useCanUse(feature: keyof Access): boolean {
+  return useAppStore((s) => s.access[feature]);
 }
