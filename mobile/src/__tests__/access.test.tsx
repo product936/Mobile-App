@@ -47,13 +47,15 @@ describe('Reviews without access', () => {
 
   it('explains the missing access and asks the admin on Request access', async () => {
     await renderLocked();
-    expect(screen.getByText("You don't have access to Reviews yet")).toBeTruthy();
-    expect(screen.getByText('Read every Google review for your store')).toBeTruthy();
+    expect(screen.getByText("You don't have access to Reviews")).toBeTruthy();
+    expect(screen.getByText('Ask your admin for access to read and reply to customer reviews.')).toBeTruthy();
+    // Minimal: no feature list.
+    expect(screen.queryByText('Read every Google review for your store')).toBeNull();
 
     await fireEvent.press(screen.getByText('Request access'));
     expect(requestAccess).toHaveBeenCalledWith('reviews');
     expect(await screen.findByText('Access requested')).toBeTruthy();
-    expect(screen.getByText('Request sent')).toBeTruthy();
+    expect(screen.getByText("We've let your admin know. You'll get a notification once Reviews is turned on for you.")).toBeTruthy();
     expect(screen.queryByText('Request access')).toBeNull();
   });
 
