@@ -6,6 +6,7 @@ import { LEADS, type Lead, type LeadSourceFilter, type LeadStatusFilter } from '
 import { EMPTY_SELECTION, toggleSelection, type LocationSelection } from '@/lib/format';
 import { upsertCallLog, type CallLog } from '@/lib/calls';
 import type { LeadNotes } from '@/lib/notes';
+import { FULL_ACCESS, type Access } from '@/services/auth';
 import type { FeedbackContext } from '@/services/feedback';
 import type { FilterLevel } from '@/data/locations';
 
@@ -40,7 +41,12 @@ type AppState = {
   phone: string;
   role: Role | null;
   setPhone: (phone: string) => void;
-  signIn: (role: Role) => void;
+  signIn: (role: Role, access?: Access) => void;
+  /** What the signed-in account can open. */
+  access: Access;
+  /** Features this user has asked their admin to turn on. */
+  accessRequested: (keyof Access)[];
+  markAccessRequested: (feature: keyof Access) => void;
   signOut: () => void;
 
   // Shared filters
@@ -116,10 +122,16 @@ export const useAppStore = create<AppState>((set) => ({
   phone: '',
   role: null,
   setPhone: (phone) => set({ phone }),
-  signIn: (role) => set({ role }),
+  signIn: (role, access = FULL_ACCESS) => set({ role, access }),
+  access: FULL_ACCESS,
+  accessRequested: [],
+  markAccessRequested: (feature) =>
+    set((s) => (s.accessRequested.includes(feature) ? s : { accessRequested: [...s.accessRequested, feature] })),
   signOut: () =>
     set({
       role: null,
+      access: FULL_ACCESS,
+      accessRequested: [],
       phone: '',
       ...initialFilters,
       ...initialOverlays,
@@ -198,4 +210,9 @@ const NO_CALLS: CallLog[] = [];
 /** Call backs logged against a lead, oldest first. */
 export function useLeadCalls(id: string | null): CallLog[] {
   return useAppStore((s) => (id ? (s.leadCalls[id] ?? NO_CALLS) : NO_CALLS));
+}
+
+/** Whether the signed-in account can open a feature. */
+export function useCanUse(feature: keyof Access): boolean {
+  return useAppStore((s) => s.access[feature]);
 }

@@ -34,8 +34,8 @@ export default function VerifyScreen() {
     if (!ready || verifying) return;
     setVerifying(true);
     try {
-      const { role } = await verifyCodes(phone, mobileCode.join(''), emailCode.join(''));
-      signIn(role);
+      const { role, access } = await verifyCodes(phone, mobileCode.join(''), emailCode.join(''));
+      signIn(role, access);
       router.replace('/welcome');
     } finally {
       setVerifying(false);

@@ -1,11 +1,11 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from 'expo-router/tabs';
-import { House, Star, Trophy, Users, type LucideIcon } from 'lucide-react-native';
+import { House, Lock, Star, Trophy, Users, type LucideIcon } from 'lucide-react-native';
 
 import { CountBadge } from '@/components/primitives';
 import { Text } from '@/components/Text';
-import { useRoleConfig } from '@/state/store';
+import { useAppStore, useRoleConfig } from '@/state/store';
 import { colors } from '@/theme/tokens';
 
 const TAB_META: Record<string, { label: string; Icon: LucideIcon; badge?: string; fillWhenActive?: boolean }> = {
@@ -23,6 +23,7 @@ const TAB_META: Record<string, { label: string; Icon: LucideIcon; badge?: string
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { tabs } = useRoleConfig();
+  const access = useAppStore((s) => s.access);
   const routes = state.routes.filter((r) => tabs.includes(r.name as (typeof tabs)[number]));
 
   return (
@@ -33,6 +34,9 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
         const focused = state.routes[state.index]?.key === route.key;
         const tint = focused ? colors.primaryAccent : colors.textTertiary;
         const { Icon } = meta;
+        // A tab the account can't use shows a small lock instead of its count.
+        const locked = route.name === 'reviews' && !access.reviews;
+        const badge = locked ? undefined : meta.badge;
 
         const onPress = () => {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -44,7 +48,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
             key={route.key}
             accessibilityRole="tab"
             accessibilityState={{ selected: focused }}
-            accessibilityLabel={meta.badge ? `${meta.label}, ${meta.badge} new` : meta.label}
+            accessibilityLabel={locked ? `${meta.label}, no access` : badge ? `${meta.label}, ${badge} new` : meta.label}
             onPress={onPress}
             style={styles.item}
           >
@@ -54,9 +58,14 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
               ) : (
                 <Icon size={24} color={tint} strokeWidth={focused ? 2.1 : 2} />
               )}
-              {meta.badge ? (
+              {badge ? (
                 <View style={styles.badge}>
-                  <CountBadge count={meta.badge} />
+                  <CountBadge count={badge} />
+                </View>
+              ) : null}
+              {locked ? (
+                <View style={styles.lock}>
+                  <Lock size={9} color={colors.white} strokeWidth={3} />
                 </View>
               ) : null}
             </View>
@@ -83,4 +92,17 @@ const styles = StyleSheet.create({
   item: { flex: 1, alignItems: 'center', gap: 4 },
   iconBox: { width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', top: -3, right: -8 },
+  lock: {
+    position: 'absolute',
+    top: -3,
+    right: -7,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.textTertiary,
+    borderWidth: 2,
+    borderColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
