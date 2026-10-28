@@ -197,3 +197,15 @@ describe('roles', () => {
     expect(roleForNumber('9876543210')).toBe('store');
   });
 });
+
+describe('Leads list status colour', () => {
+  it('is red for missed, green for converted and grey for the rest', () => {
+    const { leadStatusColor } = require('@/lib/format');
+    const { colors } = require('@/theme/tokens');
+    expect(leadStatusColor('Missed')).toBe(colors.error);
+    expect(leadStatusColor('Converted')).toBe(colors.success);
+    for (const s of ['Called by AI bot', 'Called by store manager', 'Not contacted', 'Set for reminder', 'Contacted', 'Review sent', 'Expired']) {
+      expect(leadStatusColor(s)).toBe(colors.textTertiary);
+    }
+  });
+});

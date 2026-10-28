@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Check, ListFilter, MapPin, Reply, Star, Trash2 } from 'lucide-react-native';
+import { Check, ListFilter, MapPin, Pencil, Reply, Star, Trash2 } from 'lucide-react-native';
 
 import { DropdownPill, FilterIconButtons, PageHeader } from '@/components/chrome';
 import { AiSparkGlyph } from '@/components/glyphs';
@@ -11,15 +12,26 @@ import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
 import { AVATAR_COLORS, REVIEW_AVG_RATING, REVIEWS, type Review } from '@/data/content';
 import { filterReviews } from '@/lib/reviews';
-import { useAppStore } from '@/state/store';
+import { ReplyComposer, type ComposerMode } from '@/screens/reviews/ReplyComposer';
+import { ReviewsLocked } from '@/screens/ReviewsLocked';
+import { useAppStore, useCanUse } from '@/state/store';
 import { colors, radius, type } from '@/theme/tokens';
 
 export default function ReviewsScreen() {
+  // Accounts without access to Reviews keep the tab, and see how to ask for it.
+  return useCanUse('reviews') ? <ReviewsContent /> : <ReviewsLocked />;
+}
+
+function ReviewsContent() {
   const filters = useAppStore((s) => s.reviewFilters);
   const deletedReplies = useAppStore((s) => s.deletedReplies);
+  const postedReplies = useAppStore((s) => s.postedReplies);
   const openSheet = useAppStore((s) => s.openSheet);
 
-  const reviews = REVIEWS.map((r) => (deletedReplies.includes(r.id) ? { ...r, reply: undefined } : r));
+  // Replies posted or edited in the app win; deleted ones are removed.
+  const reviews = REVIEWS.map((r) =>
+    postedReplies[r.id] ? { ...r, reply: postedReplies[r.id] } : deletedReplies.includes(r.id) ? { ...r, reply: undefined } : r,
+  );
   const rows = filterReviews(reviews, filters);
   const unreplied = reviews.filter((r) => !r.reply).length;
 
@@ -90,6 +102,24 @@ function OverviewStat({ label, children }: { label: string; children: React.Reac
 
 function ReviewCard({ review }: { review: Review }) {
   const confirmDelete = useAppStore((s) => s.setConfirmDeleteReply);
+  const savePostedReply = useAppStore((s) => s.savePostedReply);
+  // The open reply box, if any: an AI draft, a fresh reply, or an edit of the posted one.
+  const [composer, setComposer] = useState<ComposerMode | null>(null);
+  const [justPosted, setJustPosted] = useState(false);
+
+  const composerBox = composer ? (
+    <ReplyComposer
+      review={review}
+      mode={composer}
+      initialText={composer === 'edit' ? review.reply : ''}
+      onCancel={() => setComposer(null)}
+      onPosted={(text) => {
+        savePostedReply(review.id, text);
+        setComposer(null);
+        setJustPosted(true);
+      }}
+    />
+  ) : null;
   const avatar = AVATAR_COLORS[review.initials] ?? { fg: colors.white, bg: colors.primaryAccent };
 
   const trash = (
@@ -134,7 +164,9 @@ function ReviewCard({ review }: { review: Review }) {
         </Text>
       </View>
 
-      {review.reply ? (
+      {review.reply && composer === 'edit' ? (
+        composerBox
+      ) : review.reply ? (
         <>
           <View style={styles.reply}>
             <Text size={type.caption} weight={700} tracking={0.06} uppercase color={colors.textTertiary} style={{ marginBottom: 4 }}>
@@ -148,22 +180,42 @@ function ReviewCard({ review }: { review: Review }) {
             <View style={styles.repliedChip}>
               <Check size={12} color={colors.success} strokeWidth={3} />
               <Text size={type.footnote} weight={700} color={colors.success} lineHeight={1.2}>
-                Replied
+                {justPosted ? 'Reply posted' : 'Replied'}
               </Text>
             </View>
-            {trash}
+            <View style={[layout.row, { gap: 2 }]}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit reply"
+                onPress={() => {
+                  setJustPosted(false);
+                  setComposer('edit');
+                }}
+                style={({ pressed }) => [styles.trash, pressed && { backgroundColor: colors.surfaceBase }]}
+              >
+                <Pencil size={16} color={colors.primaryAccent} strokeWidth={2} />
+              </Pressable>
+              {trash}
+            </View>
           </View>
         </>
+      ) : composer ? (
+        composerBox
       ) : (
         <View style={[layout.row, { justifyContent: 'space-between', gap: 10, marginTop: 14 }]}>
           <View style={[layout.row, { gap: 8 }]}>
-            <PressableScale pressedScale={0.97} accessibilityLabel={`Reply to ${review.name}`} style={styles.replyBtn}>
+            <PressableScale
+              pressedScale={0.97}
+              accessibilityLabel={`Reply to ${review.name}`}
+              onPress={() => setComposer('write')}
+              style={styles.replyBtn}
+            >
               <Reply size={15} color={colors.white} strokeWidth={2} />
               <Text size={type.subhead} weight={700} color={colors.white} lineHeight={1.2}>
                 Reply
               </Text>
             </PressableScale>
-            <PressableScale pressedScale={0.97} accessibilityLabel="Draft a reply with AI">
+            <PressableScale pressedScale={0.97} accessibilityLabel="Draft a reply with AI" onPress={() => setComposer('ai')}>
               <LinearGradient colors={colors.aiGradientLight} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.aiBtn}>
                 <AiSparkGlyph />
                 <Text size={type.subhead} weight={700} color={colors.primaryDeep} lineHeight={1.2}>

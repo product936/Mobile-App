@@ -27,7 +27,7 @@ import { Screen, ScrollBody, Spacer } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { STORE } from '@/config/roles';
 import { isKarnatakaOnly } from '@/lib/format';
-import { useAppStore, useRoleConfig } from '@/state/store';
+import { useAppStore, useCanUse, useRoleConfig } from '@/state/store';
 import { colors, radius, shadows, type } from '@/theme/tokens';
 
 export default function HomeScreen() {
@@ -37,6 +37,8 @@ export default function HomeScreen() {
   const setLeadStatus = useAppStore((s) => s.setLeadStatus);
   const openAddLead = useAppStore((s) => s.openAddLead);
   const showEmpty = isKarnatakaOnly(selection, all);
+  // "Needs you now" is about replying to reviews, so it is left out without access to Reviews.
+  const canReviews = useCanUse('reviews');
 
   const onPrimaryCta = () => {
     if (config.home.cta.action === 'openLeaderboard') {
@@ -151,27 +153,31 @@ export default function HomeScreen() {
           </>
         ) : null}
 
-        <SectionTitle Icon={Zap}>Needs you now</SectionTitle>
-        <Card style={styles.needsCard}>
-          <IconTile size={40} background={colors.amberTile}>
-            <Star size={20} color={colors.starAmber} fill={colors.starAmber} strokeWidth={1.5} />
-          </IconTile>
-          <View style={layout.flex1}>
-            <Text size={type.callout} weight={700} color={colors.textPrimary}>
-              36 reviews waiting for a reply
-            </Text>
-            <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 2 }}>
-              Worst is 1<Text size={type.footnote} color={colors.starAmber}>★</Text> from Rohit Salvi
-            </Text>
-          </View>
-          <PressableScale accessibilityLabel="Reply to reviews" onPress={() => router.navigate('/reviews')} style={styles.replyPill}>
-            <Text size={type.subhead} weight={700} color={colors.primaryAccent} lineHeight={1.2}>
-              Reply
-            </Text>
-          </PressableScale>
-        </Card>
+        {canReviews ? (
+          <>
+            <SectionTitle Icon={Zap}>Needs you now</SectionTitle>
+            <Card style={styles.needsCard}>
+              <IconTile size={40} background={colors.amberTile}>
+                <Star size={20} color={colors.starAmber} fill={colors.starAmber} strokeWidth={1.5} />
+              </IconTile>
+              <View style={layout.flex1}>
+                <Text size={type.callout} weight={700} color={colors.textPrimary}>
+                  36 reviews waiting for a reply
+                </Text>
+                <Text size={type.footnote} color={colors.textTertiary} style={{ marginTop: 2 }}>
+                  Worst is 1<Text size={type.footnote} color={colors.starAmber}>★</Text> from Rohit Salvi
+                </Text>
+              </View>
+              <PressableScale accessibilityLabel="Reply to reviews" onPress={() => router.navigate('/reviews')} style={styles.replyPill}>
+                <Text size={type.subhead} weight={700} color={colors.primaryAccent} lineHeight={1.2}>
+                  Reply
+                </Text>
+              </PressableScale>
+            </Card>
+            <Spacer h={22} />
+          </>
+        ) : null}
 
-        <Spacer h={22} />
         <SectionTitle Icon={Eye}>How customers found you</SectionTitle>
         <Card style={styles.discovery}>
           <View style={layout.row}>

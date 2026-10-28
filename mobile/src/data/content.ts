@@ -1,3 +1,4 @@
+import type { CallLog } from '@/lib/calls';
 /** Sample content for the reviews, notifications and profile sub-pages. */
 
 export type Review = {
@@ -145,44 +146,21 @@ export const SEED_NOTE_VERSIONS = [
   },
 ];
 
-export type CustomerEvent = {
-  id: string;
-  kind: 'purchase' | 'call' | 'chat' | 'form';
-  /** Sentence split into plain and bold parts. */
-  parts: { text: string; bold?: boolean }[];
-  meta: string;
-  action?: string;
-  recordingSeconds?: number;
+/**
+ * Call backs already logged for sample leads. Priya Menon's first journey
+ * (missed call, AI bot call back) ended in a store manager call that
+ * converted; her repeat missed call at 6:20 PM starts the journey again.
+ */
+export const SEED_LEAD_CALLS: Record<string, CallLog[]> = {
+  l3: [
+    {
+      id: 'seed-l3-1',
+      by: 'store_manager',
+      outcome: 'converted',
+      notes: 'Booked a Tata Ace and paid the booking amount. Delivery on Monday with finance through Tata Capital.',
+      when: 'Today, 5:55 PM',
+      author: 'Tarun Sobhani',
+      cycle: 0,
+    },
+  ],
 };
-
-/** Sample "Customer history" timeline shown in lead details, newest first. */
-export const CUSTOMER_HISTORY: CustomerEvent[] = [
-  {
-    id: 'h1',
-    kind: 'purchase',
-    parts: [{ text: 'Purchased ' }, { text: 'Tata Ace Gold', bold: true }, { text: ' for ' }, { text: '₹5,99,000', bold: true }],
-    meta: 'Walk-in · Yesterday, 4:15 PM',
-    action: 'View note',
-  },
-  {
-    id: 'h2',
-    kind: 'call',
-    parts: [{ text: 'Called to ask about ' }, { text: 'Tata Ace Gold', bold: true }, { text: ' pricing' }],
-    meta: 'Call · 2 days ago',
-    recordingSeconds: 32,
-  },
-  {
-    id: 'h3',
-    kind: 'chat',
-    parts: [{ text: 'Asked about test drive slots on WhatsApp' }],
-    meta: 'Chat · 4 days ago',
-    action: 'View chat',
-  },
-  {
-    id: 'h4',
-    kind: 'form',
-    parts: [{ text: 'Filled an enquiry form for ' }, { text: 'Tata Ace Gold', bold: true }],
-    meta: 'Lead form · 1 week ago',
-    action: 'View details',
-  },
-];
