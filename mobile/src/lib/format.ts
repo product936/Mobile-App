@@ -35,22 +35,14 @@ export function onlyDigits(value: string, max = 10): string {
   return value.replace(/\D/g, '').slice(0, max);
 }
 
+/**
+ * Status text colour in the Leads list: red for missed, green for converted,
+ * grey for everything else. Lead details uses the fuller tints of leadStatusTint.
+ */
 export function leadStatusColor(status: LeadStatus): string {
-  switch (status) {
-    case 'Missed':
-      return colors.error;
-    case 'Not contacted':
-      return colors.warning;
-    case 'Set for reminder':
-    case 'Review sent':
-      return colors.info;
-    case 'Converted':
-      return colors.success;
-    case 'Expired':
-      return colors.textTertiary;
-    default:
-      return colors.textSecondary;
-  }
+  if (status === 'Missed') return colors.error;
+  if (status === 'Converted') return colors.success;
+  return colors.textTertiary;
 }
 
 export type LocationSelection = Record<FilterLevel, string[]>;
@@ -92,6 +84,10 @@ export function leadStatusTint(status: LeadStatus): { bg: string; fg: string } {
   switch (status) {
     case 'Missed':
       return { bg: colors.red100, fg: colors.error };
+    case 'Called by AI bot':
+      return { bg: colors.violet100, fg: colors.violet600 };
+    case 'Called by store manager':
+      return { bg: colors.indigo50, fg: colors.primaryDeep };
     case 'Not contacted':
       return { bg: colors.amber100, fg: colors.amber700 };
     case 'Set for reminder':

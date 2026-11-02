@@ -93,6 +93,8 @@ export const ROLE_CONFIGS: Record<Role, RoleConfig> = {
 /** Store context shared by both roles (the prototype's sample location). */
 export const STORE = {
   brand: 'Tata Commercial Vehicle',
+  /** Store manager who calls leads back; named in Customer history. */
+  manager: 'Rahul Sharma',
   storeCount: '7',
   locationName: 'Tata Commercial Vehicle — Indiranagar',
   locationShort: 'Tata Commercial Vehicle · Indiranagar, Bengaluru',
