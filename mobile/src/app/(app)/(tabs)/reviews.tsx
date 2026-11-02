@@ -13,6 +13,7 @@ import { STORE } from '@/config/roles';
 import { AVATAR_COLORS, REVIEW_AVG_RATING, REVIEWS, type Review } from '@/data/content';
 import { filterReviews } from '@/lib/reviews';
 import { ReplyComposer, type ComposerMode } from '@/screens/reviews/ReplyComposer';
+import { ReplyOptionsSheet } from '@/screens/reviews/ReplyOptionsSheet';
 import { ReviewsLocked } from '@/screens/ReviewsLocked';
 import { useAppStore, useCanUse } from '@/state/store';
 import { colors, radius, type } from '@/theme/tokens';
@@ -27,6 +28,14 @@ function ReviewsContent() {
   const deletedReplies = useAppStore((s) => s.deletedReplies);
   const postedReplies = useAppStore((s) => s.postedReplies);
   const openSheet = useAppStore((s) => s.openSheet);
+  const savePostedReply = useAppStore((s) => s.savePostedReply);
+  // The review whose AI reply options are open, and which reviews were just replied to here.
+  const [aiFor, setAiFor] = useState<Review | null>(null);
+  const [justPosted, setJustPosted] = useState<string[]>([]);
+  const markPosted = (id: string, text: string) => {
+    savePostedReply(id, text);
+    setJustPosted((ids) => (ids.includes(id) ? ids : [...ids, id]));
+  };
 
   // Replies posted or edited in the app win; deleted ones are removed.
   const reviews = REVIEWS.map((r) =>
@@ -77,7 +86,13 @@ function ReviewsContent() {
 
         <Spacer h={18} />
         {rows.map((r) => (
-          <ReviewCard key={r.id} review={r} />
+          <ReviewCard
+            key={r.id}
+            review={r}
+            justPosted={justPosted.includes(r.id)}
+            onPosted={(text) => markPosted(r.id, text)}
+            onDraftWithAi={() => setAiFor(r)}
+          />
         ))}
         {rows.length === 0 ? (
           <Text size={type.callout} color={colors.textTertiary} align="center" style={{ marginTop: 12 }}>
@@ -85,6 +100,15 @@ function ReviewsContent() {
           </Text>
         ) : null}
       </ScrollBody>
+      <ReplyOptionsSheet
+        review={aiFor}
+        editing={!!aiFor?.reply}
+        onClose={() => setAiFor(null)}
+        onPosted={(text) => {
+          if (aiFor) markPosted(aiFor.id, text);
+          setAiFor(null);
+        }}
+      />
     </Screen>
   );
 }
@@ -100,12 +124,20 @@ function OverviewStat({ label, children }: { label: string; children: React.Reac
   );
 }
 
-function ReviewCard({ review }: { review: Review }) {
+function ReviewCard({
+  review,
+  justPosted,
+  onPosted,
+  onDraftWithAi,
+}: {
+  review: Review;
+  justPosted: boolean;
+  onPosted: (text: string) => void;
+  onDraftWithAi: () => void;
+}) {
   const confirmDelete = useAppStore((s) => s.setConfirmDeleteReply);
-  const savePostedReply = useAppStore((s) => s.savePostedReply);
-  // The open reply box, if any: an AI draft, a fresh reply, or an edit of the posted one.
+  // The open reply box, if any: a fresh reply or an edit of the posted one.
   const [composer, setComposer] = useState<ComposerMode | null>(null);
-  const [justPosted, setJustPosted] = useState(false);
 
   const composerBox = composer ? (
     <ReplyComposer
@@ -114,9 +146,12 @@ function ReviewCard({ review }: { review: Review }) {
       initialText={composer === 'edit' ? review.reply : ''}
       onCancel={() => setComposer(null)}
       onPosted={(text) => {
-        savePostedReply(review.id, text);
+        onPosted(text);
         setComposer(null);
-        setJustPosted(true);
+      }}
+      onDraftWithAi={() => {
+        setComposer(null);
+        onDraftWithAi();
       }}
     />
   ) : null;
@@ -178,10 +213,7 @@ function ReviewCard({ review }: { review: Review }) {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Edit reply"
-                  onPress={() => {
-                    setJustPosted(false);
-                    setComposer('edit');
-                  }}
+                  onPress={() => setComposer('edit')}
                   style={({ pressed }) => [styles.trash, pressed && { backgroundColor: colors.surfaceBase }]}
                 >
                   <Pencil size={16} color={colors.primaryAccent} strokeWidth={2} />
@@ -218,7 +250,7 @@ function ReviewCard({ review }: { review: Review }) {
                 Reply
               </Text>
             </PressableScale>
-            <PressableScale pressedScale={0.97} accessibilityLabel="Draft a reply with AI" onPress={() => setComposer('ai')}>
+            <PressableScale pressedScale={0.97} accessibilityLabel="Draft a reply with AI" onPress={onDraftWithAi}>
               <LinearGradient colors={colors.aiGradientLight} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.aiBtn}>
                 <AiSparkGlyph />
                 <Text size={type.subhead} weight={700} color={colors.primaryDeep} lineHeight={1.2}>

@@ -1,5 +1,5 @@
 import type { Review } from '@/data/content';
-import { draftReply } from '@/lib/reviews';
+import { draftReplyOptions, type ReplyOption } from '@/lib/reviews';
 
 /**
  * Mock review replies. Swap these for real API calls (the AI drafting model
@@ -8,10 +8,10 @@ import { draftReply } from '@/lib/reviews';
  */
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Drafts a reply with AI. `variant` asks for a different wording. */
-export async function generateReplyDraft(review: Review, variant = 0): Promise<string> {
-  await wait(900);
-  return draftReply(review, variant);
+/** Drafts three AI reply options for a review. `round` asks for a fresh set. */
+export async function generateReplyOptions(review: Review, round = 0): Promise<ReplyOption[]> {
+  await wait(1100);
+  return draftReplyOptions(review, round);
 }
 
 /** Posts (or updates) the store's reply to a review. */
