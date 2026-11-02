@@ -95,6 +95,9 @@ type AppState = {
   saveLeadCall: (id: string, log: CallLog) => void;
   deletedReplies: string[];
   deleteReply: (id: string) => void;
+  /** Replies posted or edited in the app, by review id. */
+  postedReplies: Record<string, string>;
+  savePostedReply: (id: string, text: string) => void;
   readNotifications: string[];
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: (ids: string[]) => void;
@@ -139,6 +142,7 @@ export const useAppStore = create<AppState>((set) => ({
       leadNotes: {},
       leadCalls: SEED_LEAD_CALLS,
       deletedReplies: [],
+      postedReplies: {},
       readNotifications: [],
     }),
 
@@ -175,7 +179,17 @@ export const useAppStore = create<AppState>((set) => ({
   leadCalls: SEED_LEAD_CALLS,
   saveLeadCall: (id, log) => set((s) => ({ leadCalls: { ...s.leadCalls, [id]: upsertCallLog(s.leadCalls[id] ?? [], log) } })),
   deletedReplies: [],
-  deleteReply: (id) => set((s) => ({ deletedReplies: [...s.deletedReplies, id] })),
+  deleteReply: (id) =>
+    set((s) => {
+      const { [id]: _removed, ...postedReplies } = s.postedReplies;
+      return { deletedReplies: [...s.deletedReplies, id], postedReplies };
+    }),
+  postedReplies: {},
+  savePostedReply: (id, text) =>
+    set((s) => ({
+      postedReplies: { ...s.postedReplies, [id]: text },
+      deletedReplies: s.deletedReplies.filter((d) => d !== id),
+    })),
   readNotifications: [],
   markNotificationRead: (id) =>
     set((s) => (s.readNotifications.includes(id) ? s : { readNotifications: [...s.readNotifications, id] })),
