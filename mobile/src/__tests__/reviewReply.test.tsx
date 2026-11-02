@@ -6,6 +6,7 @@ import { ReplyComposer } from '@/screens/reviews/ReplyComposer';
 import { generateReplyDraft, postReply } from '@/services/reviews';
 import { useAppStore } from '@/state/store';
 
+jest.mock('expo-router', () => ({ router: { navigate: jest.fn(), push: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock('@/services/reviews', () => {
   const { draftReply: draft } = jest.requireActual('@/lib/reviews');
   return {
@@ -95,5 +96,22 @@ describe('posted replies', () => {
     expect(useAppStore.getState().deletedReplies).not.toContain('r1');
     await act(async () => useAppStore.getState().deleteReply('r1'));
     expect(useAppStore.getState().postedReplies.r1).toBeUndefined();
+  });
+});
+
+describe('Reviews list', () => {
+  it('shows edit and delete only against replies', async () => {
+    const { SafeAreaProvider } = require('react-native-safe-area-context');
+    const ReviewsScreen = require('@/app/(app)/(tabs)/reviews').default;
+    await act(async () => useAppStore.getState().signOut());
+    await render(
+      <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 430, height: 932 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
+        <ReviewsScreen />
+      </SafeAreaProvider>,
+    );
+    const replied = REVIEWS.filter((r) => r.reply).length;
+    expect(screen.getAllByLabelText('Delete reply')).toHaveLength(replied);
+    expect(screen.getAllByLabelText('Edit reply')).toHaveLength(replied);
+    expect(screen.getAllByLabelText('Draft a reply with AI')).toHaveLength(REVIEWS.length - replied);
   });
 });

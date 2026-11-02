@@ -169,33 +169,36 @@ function ReviewCard({ review }: { review: Review }) {
       ) : review.reply ? (
         <>
           <View style={styles.reply}>
-            <Text size={type.caption} weight={700} tracking={0.06} uppercase color={colors.textTertiary} style={{ marginBottom: 4 }}>
-              Your reply
-            </Text>
+            {/* Edit and delete belong to the reply, so they sit on its header. */}
+            <View style={styles.replyHead}>
+              <Text size={type.caption} weight={700} tracking={0.06} uppercase color={colors.textTertiary}>
+                Your reply
+              </Text>
+              <View style={[layout.row, { gap: 2 }]}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit reply"
+                  onPress={() => {
+                    setJustPosted(false);
+                    setComposer('edit');
+                  }}
+                  style={({ pressed }) => [styles.trash, pressed && { backgroundColor: colors.surfaceBase }]}
+                >
+                  <Pencil size={16} color={colors.primaryAccent} strokeWidth={2} />
+                </Pressable>
+                {trash}
+              </View>
+            </View>
             <Text size={type.callout} lineHeight={1.5} color={colors.textSecondary}>
               {review.reply}
             </Text>
           </View>
-          <View style={[layout.row, { justifyContent: 'space-between', marginTop: 12 }]}>
+          <View style={[layout.row, { marginTop: 12 }]}>
             <View style={styles.repliedChip}>
               <Check size={12} color={colors.success} strokeWidth={3} />
               <Text size={type.footnote} weight={700} color={colors.success} lineHeight={1.2}>
                 {justPosted ? 'Reply posted' : 'Replied'}
               </Text>
-            </View>
-            <View style={[layout.row, { gap: 2 }]}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Edit reply"
-                onPress={() => {
-                  setJustPosted(false);
-                  setComposer('edit');
-                }}
-                style={({ pressed }) => [styles.trash, pressed && { backgroundColor: colors.surfaceBase }]}
-              >
-                <Pencil size={16} color={colors.primaryAccent} strokeWidth={2} />
-              </Pressable>
-              {trash}
             </View>
           </View>
         </>
@@ -224,7 +227,6 @@ function ReviewCard({ review }: { review: Review }) {
               </LinearGradient>
             </PressableScale>
           </View>
-          {trash}
         </View>
       )}
     </Card>
@@ -235,6 +237,7 @@ const styles = StyleSheet.create({
   overview: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 8 },
   card: { padding: 16, marginBottom: 12 },
   reply: { marginTop: 12, borderLeftWidth: 3, borderLeftColor: colors.infoBorder, paddingLeft: 12 },
+  replyHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -6, marginBottom: 2 },
   repliedChip: {
     flexDirection: 'row',
     alignItems: 'center',
