@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { RefreshCw, Send } from 'lucide-react-native';
+import { Send } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
 import { RadioDot } from '@/components/controls';
@@ -17,7 +17,7 @@ import { colors, motion, radius, type } from '@/theme/tokens';
 
 /**
  * "Draft with AI": a sheet with the review as its header and three AI reply
- * options stacked below it, with "Regenerate" at the top right. Picking an
+ * options stacked below it. Picking an
  * option makes it editable in place; "Post reply" posts the picked one, as
  * edited. Nothing is posted until then.
  */
@@ -131,19 +131,6 @@ export function ReplyOptionsSheet({
                   {loading ? 'Writing 3 replies…' : 'Pick a reply'}
                 </Text>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Regenerate replies"
-                onPress={() => generate(round + 1)}
-                disabled={loading || posting}
-                hitSlop={8}
-                style={[styles.regenerate, (loading || posting) && { opacity: 0.4 }]}
-              >
-                <RefreshCw size={13} color={colors.primaryAccent} strokeWidth={2.4} />
-                <Text size={type.footnote} weight={700} color={colors.primaryAccent} lineHeight={1.2}>
-                  Regenerate
-                </Text>
-              </Pressable>
             </View>
             {!loading && options ? (
               <Text size={type.footnote} color={colors.textTertiary} style={{ marginBottom: 12 }}>
@@ -281,15 +268,6 @@ const styles = StyleSheet.create({
   },
   body: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 },
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
-  regenerate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 30,
-    paddingHorizontal: 12,
-    borderRadius: radius.full,
-    backgroundColor: colors.blue50,
-  },
   option: {
     padding: 14,
     borderRadius: radius.lg,
