@@ -54,6 +54,7 @@ Every colour, size, radius, shadow and duration comes from `src/theme/tokens.ts`
 
 - Sending a review request ends on a "Review request sent" confirmation, followed by an optional "Quick feedback?" rating (five faces plus an optional comment). The same feedback dialog follows a lead status change saved in Lead details.
 - Lead details shows a coloured status pill next to the title, a status dropdown, versioned notes (edit, delete with confirmation, version history) and a customer history timeline with a playable call recording.
+- "Call back" in Lead details dials the customer (on a device) and opens "How did the call go?": a required call status (Connected, No answer, Busy, Asked to call later, Wrong number) and optional call notes. Saving adds the call to the lead's notes as a new version. Connected moves the status draft to Contacted, Asked to call later to Set for reminder (and turns on the reminder), and Wrong number to Expired; "Save & Done" keeps the change. In the web preview there is no dialer, so the dialog opens straight away.
 
 - Missed-call numbers are masked; recovered calls show the full number; lead-form submissions show the customer's name.
 - The location sheet starts unchecked. Selecting exactly Karnataka swaps the home card to the amber "Let's get started" state, and the location button becomes a pill with the location count.
