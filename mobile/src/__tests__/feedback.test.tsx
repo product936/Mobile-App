@@ -23,6 +23,11 @@ describe('Quick feedback dialog', () => {
     await openDialog('status_update');
     expect(screen.getByText('Tap a face. How easy was updating this lead?')).toBeTruthy();
     expect(screen.getByText('Pick a face to rate this task')).toBeTruthy();
+    // One title and one way to skip.
+    expect(screen.getAllByText('Quick feedback?')).toHaveLength(1);
+    expect(screen.queryByText('How was that?')).toBeNull();
+    expect(screen.queryByText('Skip')).toBeNull();
+    expect(screen.getByText('Skip for now')).toBeTruthy();
   });
 
   it('sends nothing until a face is picked, then sends the rating and comment', async () => {

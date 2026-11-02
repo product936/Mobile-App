@@ -35,7 +35,8 @@ const COPY: Record<FeedbackContext, { subtitle: string; question: string }> = {
 
 /**
  * "Quick feedback" after a completed task: a 1–5 ease rating (faces) and an
- * optional comment. Every way out except "Send feedback" skips without saving.
+ * optional comment. "Skip for now", the close button and the backdrop all
+ * dismiss without saving.
  */
 export function FeedbackDialog() {
   const context = useAppStore((s) => s.feedbackPrompt);
@@ -117,10 +118,7 @@ export function FeedbackDialog() {
       ) : (
         <>
           <View style={styles.inner}>
-            <Text size={type.headline} weight={700} color={colors.textPrimary} align="center">
-              How was that?
-            </Text>
-            <Text size={type.subhead} color={colors.textTertiary} align="center" style={{ marginTop: 4 }}>
+            <Text size={type.callout} weight={600} color={colors.textSecondary} align="center">
               {copy.question}
             </Text>
 
@@ -171,24 +169,17 @@ export function FeedbackDialog() {
               <Text size={type.footnote} color={colors.textTertiary}>
                 {comment.length}/{FEEDBACK_MAX}
               </Text>
-              <View style={[layout.row, { gap: 14 }]}>
-                <Pressable accessibilityRole="button" onPress={close} hitSlop={10}>
-                  <Text size={type.callout} weight={500} color={colors.textSecondary}>
-                    Skip
-                  </Text>
-                </Pressable>
-                <Button
-                  label={failed ? 'Try again' : 'Send feedback'}
-                  height={42}
-                  fontSize={type.callout}
-                  weight={600}
-                  disabled={!rating}
-                  loading={sending}
-                  onPress={send}
-                  style={styles.sendBtn}
-                  iconLeft={<Send size={16} color={rating ? colors.white : colors.textTertiary} strokeWidth={2} />}
-                />
-              </View>
+              <Button
+                label={failed ? 'Try again' : 'Send feedback'}
+                height={42}
+                fontSize={type.callout}
+                weight={600}
+                disabled={!rating}
+                loading={sending}
+                onPress={send}
+                style={styles.sendBtn}
+                iconLeft={<Send size={16} color={rating ? colors.white : colors.textTertiary} strokeWidth={2} />}
+              />
             </View>
           </View>
 
