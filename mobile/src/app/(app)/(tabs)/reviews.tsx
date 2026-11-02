@@ -149,10 +149,6 @@ function ReviewCard({
         onPosted(text);
         setComposer(null);
       }}
-      onDraftWithAi={() => {
-        setComposer(null);
-        onDraftWithAi();
-      }}
     />
   ) : null;
   const avatar = AVATAR_COLORS[review.initials] ?? { fg: colors.white, bg: colors.primaryAccent };
@@ -252,7 +248,7 @@ function ReviewCard({
             </PressableScale>
             <PressableScale pressedScale={0.97} accessibilityLabel="Draft a reply with AI" onPress={onDraftWithAi}>
               <LinearGradient colors={colors.aiGradientLight} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.aiBtn}>
-                <AiSparkGlyph />
+                <AiSparkGlyph size={20} />
                 <Text size={type.subhead} weight={700} color={colors.primaryDeep} lineHeight={1.2}>
                   Draft with AI
                 </Text>

@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 import { Send } from 'lucide-react-native';
 
 import { Button } from '@/components/Button';
-import { AiSparkGlyph } from '@/components/glyphs';
 import { layout } from '@/components/primitives';
 import { Text } from '@/components/Text';
 import type { Review } from '@/data/content';
@@ -16,8 +15,8 @@ export type ComposerMode = 'write' | 'edit';
 
 /**
  * Inline reply box on a review card, for writing a reply or editing the
- * posted one. "Draft with AI" in its header hands over to the AI options
- * sheet. Nothing is posted until "Post reply".
+ * posted one: just the input (with its character count inside) and the
+ * Cancel and Post buttons. Nothing is posted until "Post reply".
  */
 export function ReplyComposer({
   review,
@@ -25,14 +24,12 @@ export function ReplyComposer({
   initialText = '',
   onCancel,
   onPosted,
-  onDraftWithAi,
 }: {
   review: Review;
   mode: ComposerMode;
   initialText?: string;
   onCancel: () => void;
   onPosted: (text: string) => void;
-  onDraftWithAi: () => void;
 }) {
   const [text, setText] = useState(initialText);
   const [posting, setPosting] = useState(false);
@@ -54,44 +51,21 @@ export function ReplyComposer({
   };
 
   return (
-    <View style={styles.box}>
-      <View style={styles.head}>
-        <Text size={type.footnote} weight={700} color={colors.textSecondary}>
-          {mode === 'edit' ? 'Edit your reply' : 'Your reply'}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Draft a reply with AI"
-          onPress={onDraftWithAi}
-          disabled={posting}
-          hitSlop={8}
-          style={styles.headAction}
-        >
-          <AiSparkGlyph size={12} />
-          <Text size={type.footnote} weight={700} color={colors.primaryAccent} lineHeight={1.2}>
-            Draft with AI
-          </Text>
-        </Pressable>
-      </View>
-
-      <TextInput
-        accessibilityLabel="Your reply"
-        value={text}
-        onChangeText={(t) => setText(t.slice(0, REPLY_MAX))}
-        maxLength={REPLY_MAX}
-        multiline
-        textAlignVertical="top"
-        autoFocus
-        placeholder={`Write a reply to ${review.name.split(' ')[0]}…`}
-        placeholderTextColor={colors.textTertiary}
-        style={styles.input}
-      />
-
-      <View style={[layout.row, { justifyContent: 'space-between', marginTop: 6 }]}>
-        <Text size={type.caption} color={colors.textTertiary} style={layout.flex1}>
-          Replies show publicly on Google.
-        </Text>
-        <Text size={type.caption} color={colors.textTertiary}>
+    <View style={styles.wrap}>
+      <View>
+        <TextInput
+          accessibilityLabel="Your reply"
+          value={text}
+          onChangeText={(t) => setText(t.slice(0, REPLY_MAX))}
+          maxLength={REPLY_MAX}
+          multiline
+          textAlignVertical="top"
+          autoFocus
+          placeholder={`Write a reply to ${review.name.split(' ')[0]}…`}
+          placeholderTextColor={colors.textTertiary}
+          style={styles.input}
+        />
+        <Text size={type.caption} color={colors.textTertiary} style={styles.count} pointerEvents="none">
           {text.length}/{REPLY_MAX}
         </Text>
       </View>
@@ -120,21 +94,14 @@ export function ReplyComposer({
 }
 
 const styles = StyleSheet.create({
-  box: {
-    marginTop: 14,
-    padding: 12,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.borderDefault,
-    backgroundColor: colors.surfaceElevated,
-  },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
-  headAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  wrap: { marginTop: 14 },
   input: {
-    minHeight: 104,
-    padding: 12,
+    minHeight: 120,
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 30,
     borderRadius: radius.input,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.borderDefault,
     backgroundColor: colors.white,
     fontFamily: fontFamily(400),
@@ -143,4 +110,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     outlineStyle: 'none',
   } as object,
+  // The character count sits inside the box, bottom right.
+  count: { position: 'absolute', right: 12, bottom: 9 },
 });

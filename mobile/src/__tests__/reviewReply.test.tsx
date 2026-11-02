@@ -54,7 +54,9 @@ describe('Reply options sheet', () => {
     expect(screen.getByText('Rohit Salvi')).toBeTruthy();
     expect(screen.getByText(negative.text)).toBeTruthy();
     expect(screen.getAllByRole('radio')).toHaveLength(3);
-    expect(screen.getByLabelText('Regenerate replies')).toBeTruthy();
+    // No regenerate option.
+    expect(screen.queryByLabelText('Regenerate replies')).toBeNull();
+    expect(screen.queryByText('Regenerate')).toBeNull();
   });
 
   it('needs a pick before posting, then posts the picked option as edited', async () => {
@@ -75,18 +77,6 @@ describe('Reply options sheet', () => {
     expect(onPosted).toHaveBeenCalledWith(edited);
   });
 
-  it('regenerates a fresh set and clears the pick', async () => {
-    await open();
-    const first = draftReplyOptions(negative, 0);
-    await fireEvent.press(screen.getByLabelText(`Warm reply: ${first[0].text}`));
-    await fireEvent.press(screen.getByLabelText('Regenerate replies'));
-    await screen.findByText('Pick a reply');
-    expect(generateReplyOptions).toHaveBeenLastCalledWith(negative, 1);
-    const second = draftReplyOptions(negative, 1);
-    expect(screen.getByLabelText(`Warm reply: ${second[0].text}`)).toBeTruthy();
-    expect(screen.queryByLabelText('Warm reply, editable')).toBeNull();
-  });
-
   it('says Update reply when replacing a reply', async () => {
     await open(jest.fn(), true);
     expect(screen.getByText('Update reply')).toBeTruthy();
@@ -104,21 +94,23 @@ describe('Reply options sheet', () => {
 describe('Reply composer', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('needs text to post, and hands over to the AI options', async () => {
-    const onDraftWithAi = jest.fn();
-    await render(<ReplyComposer review={negative} mode="write" onCancel={jest.fn()} onPosted={jest.fn()} onDraftWithAi={onDraftWithAi} />);
+  it('is just the input with its count inside, and needs text to post', async () => {
+    await render(<ReplyComposer review={negative} mode="write" onCancel={jest.fn()} onPosted={jest.fn()} />);
+    expect(screen.getByPlaceholderText('Write a reply to Rohit…')).toBeTruthy();
+    expect(screen.getByText('0/1000')).toBeTruthy();
+    expect(screen.queryByText('Your reply')).toBeNull();
+    expect(screen.queryByLabelText('Draft a reply with AI')).toBeNull();
+    expect(screen.queryByText(/Replies show publicly on Google/)).toBeNull();
     await fireEvent.press(screen.getByText('Post reply'));
     expect(postReply).not.toHaveBeenCalled();
-    await fireEvent.press(screen.getByLabelText('Draft a reply with AI'));
-    expect(onDraftWithAi).toHaveBeenCalled();
   });
 
   it('edits a posted reply in place', async () => {
     const onPosted = jest.fn();
     await render(
-      <ReplyComposer review={negative} mode="edit" initialText="Old reply" onCancel={jest.fn()} onPosted={onPosted} onDraftWithAi={jest.fn()} />,
+      <ReplyComposer review={negative} mode="edit" initialText="Old reply" onCancel={jest.fn()} onPosted={onPosted} />,
     );
-    expect(screen.getByText('Edit your reply')).toBeTruthy();
+    expect(screen.getByDisplayValue('Old reply')).toBeTruthy();
     await fireEvent.changeText(screen.getByLabelText('Your reply'), 'New reply');
     await fireEvent.press(screen.getByText('Update reply'));
     expect(onPosted).toHaveBeenCalledWith('New reply');
@@ -126,7 +118,7 @@ describe('Reply composer', () => {
 
   it('offers to try again if posting fails', async () => {
     (postReply as jest.Mock).mockRejectedValueOnce(new Error('offline'));
-    await render(<ReplyComposer review={negative} mode="edit" initialText="A reply" onCancel={jest.fn()} onPosted={jest.fn()} onDraftWithAi={jest.fn()} />);
+    await render(<ReplyComposer review={negative} mode="edit" initialText="A reply" onCancel={jest.fn()} onPosted={jest.fn()} />);
     await fireEvent.press(screen.getByText('Update reply'));
     expect(await screen.findByText("We couldn't post your reply. Check your connection and try again.")).toBeTruthy();
     expect(screen.getByText('Try again')).toBeTruthy();
