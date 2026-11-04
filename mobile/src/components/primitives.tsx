@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Text } from '@/components/Text';
+import type { FontWeight } from '@/theme/fonts';
 import { colors, radius, shadows, type } from '@/theme/tokens';
 
 /** Elevated white card: 1px border, 14px radius, blue-tinted soft shadow. */
@@ -65,16 +66,21 @@ export function Avatar({
   background = colors.primaryAccent,
   color = colors.white,
   fontSize = 13,
+  weight = 700,
+  tracking,
 }: {
   initials: string;
   size?: number;
   background?: string;
   color?: string;
   fontSize?: number;
+  weight?: FontWeight;
+  /** Letter spacing in em, matching the design-system CSS. */
+  tracking?: number;
 }) {
   return (
     <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: background }, styles.center]}>
-      <Text size={fontSize} weight={700} color={color} lineHeight={1.1}>
+      <Text size={fontSize} weight={weight} color={color} lineHeight={1.1} tracking={tracking}>
         {initials}
       </Text>
     </View>
