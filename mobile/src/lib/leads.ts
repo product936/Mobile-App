@@ -27,3 +27,23 @@ export function filterLeads<T extends Lead>(leads: T[], status: LeadStatusFilter
     (l) => (status === 'All status' || l.status === status) && (source === 'All sources' || l.source === source),
   );
 }
+
+/**
+ * Leads whose name or number matches a search, ignoring case and spaces.
+ * Numbers match only on the digits the row shows, so a masked missed-call
+ * number can't be found by its hidden digits.
+ */
+export function searchLeads<T extends Lead>(leads: T[], query: string): T[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return leads;
+  const digits = q.replace(/\D/g, '');
+  const textOnly = q.replace(/[\d\s+()-]/g, '');
+  return leads.filter((l) => {
+    if (textOnly && l.person?.toLowerCase().includes(q)) return true;
+    if (digits && digits.length === q.replace(/[\s+()-]/g, '').length) {
+      // Without the repeat-call count, e.g. "98330 04426 (1)".
+      return dialableNumber(leadPresentation(l).number).replace(/\D/g, '').includes(digits);
+    }
+    return false;
+  });
+}

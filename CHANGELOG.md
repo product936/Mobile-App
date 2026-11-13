@@ -6,6 +6,7 @@ Clickable preview (always the latest version): https://claude.ai/artifact/MyroQ1
 
 ## Unreleased
 
+- **Search on Leads** ([#14](https://github.com/product936/Mobile-App/pull/14)): a search bar under the Leads title finds leads by name or number and works together with the existing filters. Masked missed-call numbers can only be found by the digits they show.
 - **Simpler review replies** ([#13](https://github.com/product936/Mobile-App/pull/13)): the AI reply sheet no longer has Regenerate. The manual reply box is now just the input, with the character count inside it, and Cancel / Post reply. The Draft with AI button has a larger icon.
 - **Three AI reply options** ([#12](https://github.com/product936/Mobile-App/pull/12)): "Draft with AI" now opens a sheet with the review at the top and three AI replies below it (Warm, Professional, Short). Pick one, edit it in place, and post it, 
 - **Editable AI review replies** ([#11](https://github.com/product936/Mobile-App/pull/11)): "Draft with AI" on a review now fills an inline reply box with an AI draft you can edit before posting, regenerate for a different wording, or cancel. "Reply" opens the same box to write your own, and posted replies can be edited later. Edit and delete now sit on the reply itself, so unreplied reviews no longer show a delete icon.

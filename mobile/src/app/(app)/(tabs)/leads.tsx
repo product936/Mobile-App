@@ -1,5 +1,6 @@
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { ChevronRight, Phone, PhoneMissed, Star, UserPlus } from 'lucide-react-native';
+import { useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ChevronRight, Phone, PhoneMissed, Search, Star, UserPlus, X } from 'lucide-react-native';
 
 import { DropdownPill, FilterIconButtons, PageHeader } from '@/components/chrome';
 import { FlameGlyph } from '@/components/glyphs';
@@ -9,9 +10,10 @@ import { Screen, ScrollBody, Spacer } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import type { Lead } from '@/data/leads';
 import { leadStatusColor } from '@/lib/format';
-import { dialableNumber, filterLeads, leadPresentation } from '@/lib/leads';
+import { dialableNumber, filterLeads, leadPresentation, searchLeads } from '@/lib/leads';
 import { useAppStore, useLeads } from '@/state/store';
-import { colors, radius, shadows, type } from '@/theme/tokens';
+import { fontFamily } from '@/theme/fonts';
+import { colors, radius, shadows, sizes, type } from '@/theme/tokens';
 
 export default function LeadsScreen() {
   const leads = useLeads();
@@ -19,13 +21,34 @@ export default function LeadsScreen() {
   const source = useAppStore((s) => s.leadSource);
   const openSheet = useAppStore((s) => s.openSheet);
   const openAddLead = useAppStore((s) => s.openAddLead);
-  const rows = filterLeads(leads, status, source);
+  const [query, setQuery] = useState('');
+  const rows = searchLeads(filterLeads(leads, status, source), query);
+  const searching = query.trim().length > 0;
 
   return (
     <Screen>
       <ScrollBody contentStyle={{ paddingBottom: 96 }}>
         <PageHeader title="Leads" subtitle="Every enquiry, whatever brought it in" />
         <Spacer h={16} />
+        <View style={styles.search}>
+          <Search size={18} color={colors.textTertiary} strokeWidth={2} />
+          <TextInput
+            accessibilityLabel="Search leads by name or number"
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search by name or number"
+            placeholderTextColor={colors.textTertiary}
+            returnKeyType="search"
+            autoCorrect={false}
+            style={styles.searchInput}
+          />
+          {searching ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')} hitSlop={8} style={styles.clear}>
+              <X size={14} color={colors.textSecondary} strokeWidth={2.4} />
+            </Pressable>
+          ) : null}
+        </View>
+        <Spacer h={12} />
         <View style={[layout.row, { gap: 8 }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={layout.flex1} contentContainerStyle={{ gap: 8 }}>
             <DropdownPill label={status} onPress={() => openSheet('status')} />
@@ -39,9 +62,18 @@ export default function LeadsScreen() {
           <LeadRow key={lead.id} lead={lead} />
         ))}
         {rows.length === 0 ? (
-          <Text size={type.callout} color={colors.textTertiary} align="center" style={{ marginTop: 24 }}>
-            No leads match these filters.
-          </Text>
+          <View style={{ alignItems: 'center', marginTop: 24 }}>
+            <Text size={type.callout} color={colors.textTertiary} align="center">
+              {searching ? `No leads match "${query.trim()}".` : 'No leads match these filters.'}
+            </Text>
+            {searching ? (
+              <Pressable accessibilityRole="button" onPress={() => setQuery('')} hitSlop={8} style={{ marginTop: 8 }}>
+                <Text size={type.callout} weight={700} color={colors.primaryAccent}>
+                  Clear search
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
       </ScrollBody>
 
@@ -122,6 +154,35 @@ function LeadRow({ lead }: { lead: Lead }) {
 }
 
 const styles = StyleSheet.create({
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: sizes.inputH,
+    paddingLeft: 14,
+    paddingRight: 8,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.borderDefault,
+    backgroundColor: colors.surfaceElevated,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    padding: 0,
+    fontFamily: fontFamily(500),
+    fontSize: type.callout,
+    color: colors.textPrimary,
+    outlineStyle: 'none',
+  } as object,
+  clear: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.full,
+    backgroundColor: colors.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 10 },
   hot: {
     flexDirection: 'row',
